@@ -1,0 +1,131 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-ens: #000000;
+  --color-ens-base: #121212;
+  --color-ens-elevated: #242424;
+  --color-ens-highlight: #1a1a1a;
+  --color-ens-subdued: #b3b3b3;
+  --color-ens-submissive: #7a7a7a;
+  --color-ens-positive: #1ed760;
+  --color-ens-announcement: #1ed760;
+  --color-ens-critical: #f15e6c;
+  --color-ens-info: #3d91f4;
+  --color-ens-warning: #ffa42b;
+  --color-ens-assisted: #a7c7e7;
+  --color-ens-decorative: #037aa6;
+  --color-ens-bright-accent: #1ed760;
+  --color-ens-selected-row: #4f4f4f;
+  --color-ens-button-hover: #3e3e3e;
+  --color-ens-card-hover: #232323;
+  --color-ens-search-bar: #242424;
+  --color-ens-search-bar-hover: #2a2a2a;
+  --color-ens-track-list-hover: #2a2a2a;
+  --color-ens-bg-elevated-base: #121212;
+  --color-ens-bg-elevated-highlight: #1f1f1f;
+  --color-ens-bg-elevated-press: #000000;
+  --color-ens-bg-tinted-disabled: #7f7f7f;
+  --color-ens-bg-tinted-base: #1f1f1f;
+  --color-ens-bg-tinted-highlight: #292929;
+  --color-ens-bg-tinted-press: #353535;
+  --color-ens-essential-bright-accent: #1ed760;
+  --color-ens-essential-normal: #b3b3b3;
+  --color-ens-text-base: #ffffff;
+  --color-ens-text-subdued: #b3b3b3;
+  --color-ens-text-bright-accent: #1ed760;
+  --color-ens-text-negative: #f15e6c;
+  --color-ens-text-warning: #ffa42b;
+  --color-ens-text-positive: #1ed760;
+  --color-ens-text-announcement: #1ed760;
+  --color-ens-text-info: #3d91f4;
+  --color-ens-text-assisted: #ffffff;
+  --color-ens-text-decorative: #037aa6;
+  --color-ens-image-placeholder: #037aa6;
+  --color-ens-replacement: #121212;
+  --color-ens-empty-state: #b3b3b3;
+  --font-sans: var(--font-spotify-mix-ui), "SpotifyMixUI", "CircularSp-Arab",
+    "CircularSp-Hebr", "CircularSp-Cyrl", "CircularSp-Grek",
+    "CircularSp-Deva", "Helvetica Neue", helvetica, arial, sans-serif;
+  --font-title: var(--font-spotify-mix-title), var(--font-sans);
+  --font-mono: var(--font-spotify-mix-mono), ui-monospace, monospace;
+  --radius-ens-4px: 4px;
+  --radius-ens-6px: 6px;
+  --radius-ens-8px: 8px;
+  --radius-ens-16px: 16px;
+  --radius-ens-full: 9999px;
+}
+
+:root {
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #121212;
+  --card-foreground: #ffffff;
+  --popover: #121212;
+  --popover-foreground: #ffffff;
+  --primary: #1ed760;
+  --primary-foreground: #000000;
+  --secondary: #1f1f1f;
+  --secondary-foreground: #ffffff;
+  --muted: #242424;
+  --muted-foreground: #b3b3b3;
+  --accent: #1f1f1f;
+  --accent-foreground: #ffffff;
+  --destructive: #f15e6c;
+  --border: #292929;
+  --input: #1f1f1f;
+  --ring: #ffffff;
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply h-full font-sans;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply h-full overflow-hidden bg-background text-foreground;
+  }
+  button {
+    cursor: pointer;
+  }
+}
+
+/* Spotify scrollbar (os-theme-spotify) */
+.os-theme-spotify.os-scrollbar-vertical {
+  padding: 4px 0;
+}
+.os-theme-spotify.os-scrollbar-horizontal {
+  padding: 0 4px;
+}
+.os-theme-spotify.os-scrollbar-horizontal.os-scrollbar-handle-interactive,
+.os-theme-spotify.os-scrollbar-vertical.os-scrollbar-handle-interactive {
+  --os-handle-bg: rgb(255 255 255 / 0.1);
+  --os-handle-bg-hover: rgb(255 255 255 / 0.2);
+  --os-handle-bg-active: rgb(255 255 255 / 0.3);
+  --os-handle-border: 0;
+  --os-handle-radius: 4px;
+  --os-handle-size: 8px;
+  --os-track-size: 8px;
+  --os-track-border: 0;
+}
+.os-theme-spotify.os-scrollbar-auto-hide {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.os-theme-spotify.os-scrollbar-auto-hide:hover,
+.os-theme-spotify.os-scrollbar-auto-hide.os-scrollbar-handle-interactive {
+  opacity: 1;
+}
+
+/* OverlayScrollbars-scoped scroll container */
+.os-scrollbar-vertical .os-scrollbar-track {
+  background: transparent;
+}
