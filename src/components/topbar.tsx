@@ -1,4 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { FormEvent, useRef } from "react";
+
 import {
   IconBrowse,
   IconClear,
@@ -8,19 +13,30 @@ import {
 } from "@/components/icons";
 
 function SearchForm() {
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const query = (inputRef.current?.value ?? "").trim();
+    router.push(query ? `/search?q=${encodeURIComponent(query)}` : "/search");
+  }
+
   return (
     <form
       role="search"
+      onSubmit={handleSubmit}
       className="relative flex h-12 w-[min(474px,40vw)] items-center rounded-full bg-[#1f1f1f]"
     >
       <button
-        type="button"
+        type="submit"
         aria-label="Search"
         className="absolute left-0 top-0 flex h-12 w-12 items-center justify-center rounded-full bg-transparent text-white"
       >
         <IconSearch width={24} height={24} fill="#fff" />
       </button>
       <input
+        ref={inputRef}
         type="text"
         placeholder="What do you want to play?"
         className="h-full w-full rounded-full border-0 bg-transparent pl-12 pr-14 text-base text-white outline-none placeholder:text-[#b3b3b3]"
@@ -113,12 +129,12 @@ export function TopBar() {
         >
           Sign up
         </button>
-        <a
-          href="#"
+        <Link
+          href="/settings"
           className="rounded-full bg-white px-8 py-2 text-base font-bold text-black transition hover:scale-[1.04]"
         >
           Log in
-        </a>
+        </Link>
       </div>
       <div className="hidden items-center gap-2 max-lg:flex">
         <button
@@ -127,12 +143,12 @@ export function TopBar() {
         >
           Sign up
         </button>
-        <a
-          href="#"
+        <Link
+          href="/settings"
           className="rounded-full bg-white px-8 py-2 text-base font-bold text-black transition hover:scale-[1.04]"
         >
           Log in
-        </a>
+        </Link>
       </div>
     </header>
   );

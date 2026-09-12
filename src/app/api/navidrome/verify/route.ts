@@ -1,6 +1,9 @@
+import { setServerSession } from "@/lib/navidrome/server-session";
+
 interface NavidromeLoginResponse {
   token: string;
   subsonicToken: string;
+  subsonicSalt: string;
   name: string;
   username: string;
   isAdmin?: boolean;
@@ -21,7 +24,14 @@ export async function POST(request: Request) {
 
   let baseUrl: string;
   try {
-    baseUrl = new URL(url).toString().replace(/\/+$/, "");
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return Response.json(
+        { ok: false, error: "Server URL must use http or https." },
+        { status: 400 },
+      );
+    }
+    baseUrl = parsed.toString().replace(/\/+$/, "");
   } catch {
     return Response.json(
       { ok: false, error: 'Invalid server URL. Use the format "http://localhost:4533".' },
@@ -46,18 +56,25 @@ export async function POST(request: Request) {
     }
 
     const data = (await res.json()) as NavidromeLoginResponse;
-    if (!data.token) {
+    if (!data.token || !data.subsonicToken) {
       return Response.json(
-        { ok: false, error: "Server did not return an auth token." },
+        { ok: false, error: "Server did not return a valid auth session." },
         { status: 502 },
       );
     }
 
+    await setServerSession({
+      url: baseUrl,
+      username,
+      name: data.name || data.username,
+      subsonicToken: data.subsonicToken,
+      subsonicSalt: data.subsonicSalt ?? "",
+    });
+
     return Response.json({
       ok: true,
       name: data.name || data.username,
-      token: data.token,
-      subsonicToken: data.subsonicToken,
+      url: baseUrl,
     });
   } catch (error) {
     const message =

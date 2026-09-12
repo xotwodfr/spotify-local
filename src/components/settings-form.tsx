@@ -3,26 +3,11 @@
 import { FormEvent, useEffect, useState } from "react";
 
 import { IconSettings } from "@/components/icons";
-
-export interface NavidromeConnection {
-  url: string;
-  name: string;
-  token: string;
-  subsonicToken: string;
-}
-
-const STORAGE_KEY = "spotify-local/navidrome";
-
-function loadConnection(): NavidromeConnection | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (!stored) return null;
-    return JSON.parse(stored) as NavidromeConnection;
-  } catch {
-    return null;
-  }
-}
+import {
+  connectToNavidrome,
+  disconnectFromNavidrome,
+  getSessionInfo,
+} from "@/lib/navidrome/auth";
 
 const inputClass =
   "h-10 w-full rounded-md border border-[#727272] bg-[#3e3e3e] px-3 text-sm text-white placeholder:text-[#a7a7a7] outline-none transition focus:border-white";
@@ -34,50 +19,41 @@ export function SettingsForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [connection, setConnection] = useState<NavidromeConnection | null>(null);
+  const [name, setName] = useState<string | null>(null);
+  const [connectedUrl, setConnectedUrl] = useState("");
 
   useEffect(() => {
-    const saved = loadConnection();
-    if (saved) {
-      setUrl(saved.url);
-      setConnection(saved);
-    }
+    void getSessionInfo().then((info) => {
+      if (info.connected) {
+        setUrl(info.url);
+        setName(info.name);
+        setConnectedUrl(info.url);
+      } else if (info.defaultUrl) {
+        setUrl(info.defaultUrl);
+      }
+    });
   }, []);
 
   async function handleConnect(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setLoading(true);
-    try {
-      const res = await fetch("/api/navidrome/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, username, password }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        setError(data.error || "Connection failed.");
-        return;
-      }
-      const next: NavidromeConnection = {
-        url,
-        name: data.name,
-        token: data.token,
-        subsonicToken: data.subsonicToken,
-      };
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      setConnection(next);
-      setPassword("");
-    } catch {
-      setError("Could not reach the server.");
-    } finally {
-      setLoading(false);
+    const result = await connectToNavidrome({ url, username, password });
+    setLoading(false);
+    if (!result.ok) {
+      setError(result.error ?? "Connection failed.");
+      return;
     }
+    setName(result.name ?? username);
+    setConnectedUrl(url.trim().replace(/\/+$/, ""));
+    setUsername("");
+    setPassword("");
   }
 
-  function handleDisconnect() {
-    window.localStorage.removeItem(STORAGE_KEY);
-    setConnection(null);
+  async function handleDisconnect() {
+    await disconnectFromNavidrome();
+    setName(null);
+    setConnectedUrl("");
     setPassword("");
     setError("");
   }
@@ -93,7 +69,7 @@ export function SettingsForm() {
         <div className="rounded-xl bg-[#282828] p-6">
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-lg font-bold text-white">Navidrome Server</h2>
-            {connection && (
+            {name && (
               <span className="flex items-center gap-2 text-sm text-[#b3b3b3]">
                 <span className="h-2.5 w-2.5 rounded-full bg-[#1ed760]" />
                 Connected
@@ -101,23 +77,23 @@ export function SettingsForm() {
             )}
           </div>
 
-          {connection ? (
+          {name ? (
             <div className="flex flex-col gap-6">
               <p className="text-sm text-white">
-                Connected as <span className="font-bold">{connection.name}</span> to{" "}
-                <span className="font-bold">{connection.url}</span>
+                Connected as <span className="font-bold">{name}</span> to{" "}
+                <span className="font-bold">{connectedUrl}</span>
               </p>
               <div className="flex flex-col items-start gap-6">
                 <button
                   type="button"
-                  onClick={handleDisconnect}
+                  onClick={() => void handleDisconnect()}
                   className="rounded-full border border-[#727272] px-6 py-2 text-sm font-bold text-white transition hover:scale-105 hover:border-white"
                 >
                   Disconnect
                 </button>
                 <p className="text-xs text-[#a7a7a7]">
-                  Your music library will be fetched from this server. Navidrome must be running
-                  for playback to work.
+                  Your music library is loaded from this server. Streaming happens through
+                  your browser — make sure Navidrome is running to play songs.
                 </p>
               </div>
             </div>
@@ -193,8 +169,8 @@ export function SettingsForm() {
               </button>
 
               <p className="text-xs text-[#a7a7a7]">
-                The connection is verified against the server and only your auth token is stored in
-                this browser.
+                Your credentials never leave this browser. They are stored as a secured token
+                that only talks to your Navidrome server.
               </p>
             </form>
           )}

@@ -1,27 +1,56 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+
 import { IconPlay } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import type { CardItem } from "@/types";
 
-export function MediaCard({ item }: { item: CardItem }) {
-  const isArtist = item.kind === "artist";
-
+function Cover({ item, className }: { item: CardItem; className: string }) {
   return (
-    <div className="group w-[196px] flex flex-col gap-2 rounded-[6px] bg-transparent p-3">
-      <div className={cn("relative", isArtist && "h-[172px] w-[172px]")}>
+    <div className={className}>
+      {item.image ? (
         <img
           src={item.image}
           width={172}
           height={172}
-          alt={item.title}
-          className={cn(
-            "object-cover",
-            isArtist ? "w-[172px] h-[172px] rounded-full bg-[#d83830]" : "w-full aspect-square rounded-[6px] bg-[#083868]",
-          )}
+          alt=""
+          className="object-cover"
         />
+      ) : null}
+    </div>
+  );
+}
+
+export function MediaCard({ item }: { item: CardItem }) {
+  const router = useRouter();
+  const isArtist = item.kind === "artist";
+
+  const playAction =
+    item.onPlay ??
+    (() => {
+      router.push(item.href);
+    });
+
+  return (
+    <div className="group w-[196px] flex flex-col gap-2 rounded-[6px] bg-transparent p-3">
+      <div className={cn("relative", isArtist && "h-[172px] w-[172px]")}>
+        <a href={item.href} aria-label={item.title}>
+          <Cover
+            item={item}
+            className={cn(
+              "flex items-center justify-center overflow-hidden",
+              isArtist
+                ? "h-[172px] w-[172px] rounded-full bg-[#d83830]"
+                : "aspect-square w-full rounded-[6px] bg-[#083868]",
+            )}
+          />
+        </a>
         <div className="absolute bottom-2 right-2 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-[#1ed760] shadow-[0_8px_8px_rgba(0,0,0,0.3)] translate-y-2 opacity-0 transition-all duration-200 ease-out group-hover:translate-y-0 group-hover:opacity-100">
           <button
             type="button"
             aria-label={`Play ${item.title}`}
+            onClick={playAction}
             className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-[#1ed760]"
           >
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1ed760] transition-transform duration-150 ease-out hover:scale-105">
