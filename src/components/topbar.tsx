@@ -61,7 +61,10 @@ function DownloadIcon() {
 
 export function TopBar() {
   return (
-    <header className="col-span-full flex h-16 items-center justify-end gap-2 bg-black p-2 md:justify-between">
+    <header className="col-span-full flex h-16 items-center justify-between gap-2 bg-black p-2">
+      <Link href="/" aria-label="Home" className="flex w-[72px] shrink-0 items-center md:hidden">
+        <SpotifyLogo width={32} height={32} fill="#fff" />
+      </Link>
       <div className="hidden items-center gap-2 md:flex">
         <Link href="/" aria-label="Home" className="flex w-[72px] shrink-0 items-center">
           <SpotifyLogo width={32} height={32} fill="#fff" />
@@ -117,7 +120,20 @@ export function TopBar() {
           Log in
         </a>
       </div>
-      <div aria-hidden className="h-10 w-10 rounded-full bg-[#e8e6e3] md:hidden" />
+      <div className="flex items-center gap-2 md:hidden">
+        <button
+          type="button"
+          className="py-1 pl-2 pr-4 text-sm font-bold text-[#b3b3b3] transition hover:text-white"
+        >
+          Sign up
+        </button>
+        <a
+          href="#"
+          className="rounded-full bg-white px-8 py-2 text-base font-bold text-black transition hover:scale-[1.04]"
+        >
+          Log in
+        </a>
+      </div>
     </header>
   );
 }

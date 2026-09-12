@@ -5,7 +5,7 @@ import type { Rail } from "@/types";
 
 export function RailSection({ rail }: { rail: Rail }) {
   return (
-    <section className="my-0 relative w-full">
+    <section className="relative mb-6 w-full last:mb-0">
       <div className="mb-2 flex h-12 items-center justify-between">
         <h2 className="truncate text-2xl font-bold text-white">{rail.title}</h2>
         <Link href={rail.showAllHref} className="text-sm font-bold text-[#b3b3b3] hover:underline">

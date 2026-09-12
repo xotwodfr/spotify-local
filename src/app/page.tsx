@@ -8,7 +8,7 @@ import { rails } from "@/lib/catalog";
 
 export default function Home() {
   return (
-    <div className="grid h-full w-full grid-cols-1 grid-rows-[64px_1fr_82px] gap-2 bg-black p-2 text-white md:grid-cols-[320px_1fr_40px]">
+    <div className="grid h-full w-full grid-cols-1 grid-rows-[64px_1fr_82px] gap-2 bg-black p-2 text-white md:grid-cols-[320px_1fr_32px]">
       <div className="col-span-full">
         <TopBar />
       </div>
@@ -18,7 +18,7 @@ export default function Home() {
       </div>
 
       <main className="relative overflow-hidden rounded-lg bg-[#121212]">
-        <div className="h-full overflow-y-auto">
+        <div className="relative h-full overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div
             aria-hidden
             className="pointer-events-none absolute left-0 right-0 top-0 h-64 bg-[linear-gradient(rgba(0,0,0,0.6)_0%,rgb(18,18,18)_100%)]"

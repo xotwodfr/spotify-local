@@ -1,6 +1,6 @@
 export function PreviewBanner() {
   return (
-    <div className="relative flex flex-1 items-center justify-between gap-6 bg-[linear-gradient(90deg,#af2896,#509bf5)] px-6 py-2.5">
+    <div className="relative flex flex-1 items-center justify-between gap-6 overflow-hidden rounded-lg bg-[linear-gradient(90deg,#af2896,#509bf5)] px-6 py-2.5">
       <div>
         <div className="text-sm font-bold text-white">Preview of Spotify</div>
         <div className="text-base text-white max-[640px]:hidden">
