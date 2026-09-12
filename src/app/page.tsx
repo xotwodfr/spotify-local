@@ -8,12 +8,12 @@ import { rails } from "@/lib/catalog";
 
 export default function Home() {
   return (
-    <div className="grid h-full w-full grid-cols-1 grid-rows-[64px_1fr_82px] gap-2 bg-black p-2 text-white md:grid-cols-[320px_1fr_32px]">
+    <div className="grid h-full w-full grid-cols-[320px_1fr_32px] grid-rows-[64px_1fr_82px] gap-2 bg-black p-2 text-white max-lg:grid-cols-1">
       <div className="col-span-full">
         <TopBar />
       </div>
 
-      <div className="hidden md:flex">
+      <div className="flex max-lg:hidden">
         <Sidebar />
       </div>
 
@@ -35,13 +35,13 @@ export default function Home() {
         </div>
       </main>
 
-      <div className="hidden rounded-lg bg-[#121212] xl:block" />
+      <div className="rounded-lg bg-[#121212] max-xl:hidden" />
 
       <div className="col-span-full">
         <NowPlayingBar />
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 md:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 hidden max-lg:flex">
         <MobileNav />
       </div>
     </div>

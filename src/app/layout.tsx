@@ -14,15 +14,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body
-        className={cn(
-          spotifyMixUI.variable,
-          spotifyMixTitle.variable,
-          spotifyMixMono.variable,
-          "h-full overflow-hidden bg-black text-white",
-        )}
-      >
+    <html lang="en" className={cn("h-full antialiased", spotifyMixUI.variable, spotifyMixTitle.variable, spotifyMixMono.variable)}>
+      <body className="h-full overflow-hidden bg-black text-white">
         {children}
       </body>
     </html>

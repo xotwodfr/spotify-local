@@ -26,13 +26,13 @@ function SearchForm() {
         className="h-full w-full rounded-full border-0 bg-transparent pl-12 pr-14 text-base text-white outline-none placeholder:text-[#b3b3b3]"
       />
       <div className="absolute right-0 top-0 flex h-12 items-center gap-1 pr-1">
-        <kbd className="hidden items-center rounded border-0 px-1.5 py-0.5 text-base text-[#b3b3b3] lg:flex">
+        <kbd className="flex items-center rounded border-0 px-1.5 py-0.5 text-base text-[#b3b3b3] max-lg:hidden">
           Ctrl
         </kbd>
-        <kbd className="hidden items-center rounded border-0 px-1.5 py-0.5 text-base text-[#b3b3b3] lg:flex">
+        <kbd className="flex items-center rounded border-0 px-1.5 py-0.5 text-base text-[#b3b3b3] max-lg:hidden">
           Shift
         </kbd>
-        <kbd className="hidden items-center rounded border-0 px-1.5 py-0.5 text-base text-[#b3b3b3] lg:flex">
+        <kbd className="flex items-center rounded border-0 px-1.5 py-0.5 text-base text-[#b3b3b3] max-lg:hidden">
           L
         </kbd>
         <button
@@ -62,10 +62,10 @@ function DownloadIcon() {
 export function TopBar() {
   return (
     <header className="col-span-full flex h-16 items-center justify-between gap-2 bg-black p-2">
-      <Link href="/" aria-label="Home" className="flex w-[72px] shrink-0 items-center md:hidden">
+      <Link href="/" aria-label="Home" className="hidden w-[72px] shrink-0 items-center max-lg:flex">
         <SpotifyLogo width={32} height={32} fill="#fff" />
       </Link>
-      <div className="hidden items-center gap-2 md:flex">
+      <div className="flex items-center gap-2 max-lg:hidden">
         <Link href="/" aria-label="Home" className="flex w-[72px] shrink-0 items-center">
           <SpotifyLogo width={32} height={32} fill="#fff" />
         </Link>
@@ -78,8 +78,8 @@ export function TopBar() {
         </button>
         <SearchForm />
       </div>
-      <div className="hidden items-center gap-2 md:flex">
-        <div className="hidden items-center gap-2 min-[1200px]:flex">
+      <div className="flex items-center gap-2 max-lg:hidden">
+        <div className="flex items-center gap-2 max-[1199px]:hidden">
           <button
             type="button"
             className="py-2 text-base font-bold text-[#b3b3b3] transition hover:text-white"
@@ -120,7 +120,7 @@ export function TopBar() {
           Log in
         </a>
       </div>
-      <div className="flex items-center gap-2 md:hidden">
+      <div className="hidden items-center gap-2 max-lg:flex">
         <button
           type="button"
           className="py-1 pl-2 pr-4 text-sm font-bold text-[#b3b3b3] transition hover:text-white"

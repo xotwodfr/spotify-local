@@ -45,7 +45,7 @@ export function MobileNav() {
   return (
     <nav
       aria-label="Mobile navigation"
-      className="flex h-[58px] items-stretch justify-around border-t border-[#292929] bg-black md:hidden"
+      className="flex h-[58px] items-stretch justify-around border-t border-[#292929] bg-black"
     >
       <TabLink href="#" label="Home" active>
         <IconHome className="h-6 w-6 fill-current" />
