@@ -1,4 +1,6 @@
-import { IconCreate } from "@/components/icons";
+import Link from "next/link";
+
+import { IconCreate, IconSettings } from "@/components/icons";
 
 const LEGAL_LINKS = [
   "Legal",
@@ -48,6 +50,16 @@ export function Sidebar() {
               Browse podcasts
             </button>
           </div>
+        </div>
+
+        <div className="mt-2 flex flex-col gap-3 px-4">
+          <Link
+            href="/settings"
+            className="flex h-8 items-center gap-3 rounded-md px-1 text-sm font-medium text-[#b3b3b3] transition hover:text-white"
+          >
+            <IconSettings className="h-5 w-5 shrink-0" />
+            Settings
+          </Link>
         </div>
 
         <div className="mt-8 flex flex-col gap-3 px-6 pb-4 pt-8">
