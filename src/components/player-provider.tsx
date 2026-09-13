@@ -20,6 +20,7 @@ import {
 } from "@/lib/navidrome/playback";
 import type { NSong } from "@/lib/navidrome/types";
 import { getSyncSetting } from "@/lib/settings";
+import { fadeGain } from "@/lib/audio/fade";
 
 export type RepeatMode = "off" | "all" | "one";
 
@@ -63,7 +64,9 @@ const EASE_FADE_STEPS_MS = 32;
 /**
  * Ease the audio element's volume toward `to` over `durationMs`.
  * Each element owns its fade timer so the outgoing fade-out and the incoming
- * fade-in run independently during a crossfade.
+ * fade-in run independently during a crossfade. The ramp follows the
+ * equal-power curve (see src/lib/audio/fade.ts); a plain `from`→`to` move
+ * still lands exactly on its endpoints.
  */
 function fadeVolume(
   audio: HTMLAudioElement,
@@ -84,7 +87,15 @@ function fadeVolume(
   const start = performance.now();
   const timer = setInterval(() => {
     const t = Math.min(1, (performance.now() - start) / durationMs);
-    audio.volume = from + (to - from) * (1 - Math.pow(1 - t, 3));
+    // Map the ramp through the equal-power curve in the direction of travel;
+    // normalized so the endpoints still land exactly on from/to.
+    const gIn = fadeGain(t, "in");
+    const gOut = fadeGain(t, "out");
+    const shaped = to >= from ? gIn : gOut;
+    const anchor = to >= from ? fadeGain(0, "in") : fadeGain(0, "out");
+    const span = (to >= from ? fadeGain(1, "in") : fadeGain(1, "out")) - anchor;
+    const normalized = span > 0 ? (shaped - anchor) / span : t;
+    audio.volume = from + (to - from) * normalized;
     if (t >= 1) {
       audio.volume = to;
       const current = timers.get(audio);
@@ -188,12 +199,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     // True crossfade: the outgoing track keeps playing while fading out as the
     // incoming track fades in on the other element. Only when the outgoing
     // track is actually audible — otherwise an instant switch is cleaner.
+    // Restarting the playing track itself (repeat-one press, re-click) stays
+    // instant: fading into the same song just ducks it pointlessly.
     const canCrossfade =
       crossfade > 0 &&
       targetVolume > 0 &&
       outgoing !== null &&
       !outgoing.paused &&
-      outgoing.getAttribute("src");
+      outgoing.getAttribute("src") &&
+      outgoing.getAttribute("src") !== url;
     if (canCrossfade && outgoing) {
       const incoming = outgoing === audioRef.current ? audioBRef.current : audioRef.current;
       if (!incoming) {
