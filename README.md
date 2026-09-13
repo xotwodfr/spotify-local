@@ -22,41 +22,34 @@
 
 ---
 
-##  What is Spotify Local?
+## 🚀 What is Spotify Local?
 
-Spotify Local is a modern music client for your own music library.
+**Spotify Local** is a modern, lightweight music client built specifically for self-hosted libraries[cite: 1]. 
 
-It connects directly to **Navidrome** through the **OpenSubsonic API**, giving you a familiar Spotify-style experience without relying on Spotify's infrastructure.
+It interfaces directly with **Navidrome** using the **OpenSubsonic API**[cite: 1], delivering a polished, high-performance UI modeled after Spotify[cite: 1]—minus the telemetry, subscription fees, and cloud lock-in.
 
-Your music stays on your server.
-
-Your library stays yours.
+* **Your music:** Stays entirely on your infrastructure[cite: 1].
+* **Your library:** Fully owned and locally controlled[cite: 1].
 
 ---
 
-## Features
+## ✨ Features
 
 <table>
 <tr>
 <td width="50%">
 
-### Music Library
-
-Browse your:
-
-- Artists
-- Albums
-- Tracks
-- Playlists
-- Recently added music
-- Recommended music
+### 📚 Music Library
+Seamlessly navigate your collection:
+- Artists & Albums[cite: 1]
+- Individual Tracks & Playlists[cite: 1]
+- Recently Added & Recommendations[cite: 1]
 
 </td>
 <td width="50%">
 
-### 🔎 Search
-
-Quickly search your entire music library through Navidrome's API.
+### 🔎 Instant Search
+Lightning-fast querying powered natively by Navidrome's backend API[cite: 1].
 
 </td>
 </tr>
@@ -64,20 +57,14 @@ Quickly search your entire music library through Navidrome's API.
 <tr>
 <td width="50%">
 
-### Lyrics
-
-Built-in lyrics support with two dedicated lyric modes.
+### 🎤 Rich Lyrics
+Built-in synchronization support featuring two distinct viewing modes[cite: 1].
 
 </td>
 <td width="50%">
 
-### Responsive
-
-Designed to work across:
-
-- Desktop
-- Laptop
-- Mobile
+### 📱 Fully Responsive
+Adaptive layout optimized for desktops, laptops, and mobile screens[cite: 1].
 
 </td>
 </tr>
@@ -85,16 +72,14 @@ Designed to work across:
 <tr>
 <td width="50%">
 
-### Native Linux App
-
-Run Spotify Local as a native Linux desktop application using Tauri. (support for other operating systems is in development)
+### ⚡ Native Linux App
+Built with Tauri[cite: 1] for a blazing-fast, lightweight desktop footprint. *(Cross-platform support coming soon)*[cite: 1]
 
 </td>
 <td width="50%">
 
-### Docker
-
-Run the web application using Docker for easy self-hosting.
+### 🐳 Docker Ready
+Containerized and ready for quick deployment alongside your existing self-hosted stack[cite: 1].
 
 </td>
 </tr>
@@ -102,33 +87,23 @@ Run the web application using Docker for easy self-hosting.
 
 ---
 
-## How it works
+## 🛠️ Architecture
 
 ```text
-┌──────────────────────┐
-│                      │
-│    Spotify Local     │
-│                      │
-│   Web / Desktop      │
-│                      │
-└──────────┬───────────┘
-           │
-           │ OpenSubsonic API
-           ▼
-┌──────────────────────┐
-│                      │
-│      Navidrome       │
-│                      │
-│    Music Server      │
-│                      │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│                      │
-│    Your Music        │
-│                      │
-│  Albums · Artists    │
-│  Tracks · Playlists  │
-│                      │
-└──────────────────────┘
+┌──────────────────────────────────────────────┐
+│                Spotify Local                 │
+│             Web / Tauri Desktop              │
+└──────────────────────┬───────────────────────┘
+                       │
+                       │ OpenSubsonic API
+                       ▼
+┌──────────────────────────────────────────────┐
+│                  Navidrome                   │
+│                 Music Server                 │
+└──────────────────────┬───────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────┐
+│                  Your Media                  │
+│       Artists · Albums · Tracks · Lyrics     │
+└──────────────────────────────────────────────┘
