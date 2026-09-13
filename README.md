@@ -38,84 +38,20 @@ It connects directly to **Navidrome** through the **OpenSubsonic API**, giving y
 
 ## 🎧 Features
 
-<table>
-<tr>
-<td width="50%">
-
-### 🎵 Your Library
-
-Browse your entire music collection through Navidrome.
-
-- Artists
-- Albums
-- Tracks
-- Playlists
-- Recently added music
-- Recommended music
-
-</td>
-<td width="50%">
-
-### 🔎 Fast Search
-
-Search across your music library using Navidrome's API.
-
-Find artists, albums, songs, and playlists without leaving the app.
-
-</td>
-</tr>
-
-<tr>
-<td width="50%">
-
-### 🎤 Lyrics
-
-A dedicated lyrics experience inspired by modern streaming clients.
-
-- Synchronized lyrics
-- Active-line highlighting
-- Animated lyrics interface
-- Full-screen lyrics view
-
-</td>
-<td width="50%">
-
-### 📱 Responsive Design
-
-One interface across different screen sizes.
-
-- Desktop
-- Laptop
-- Mobile
-
-</td>
-</tr>
-
-<tr>
-<td width="50%">
-
-### 🖥️ Desktop App
-
-Run Spotify Local as a native desktop application using **Tauri**.
-
-</td>
-<td width="50%">
-
-### 🐳 Self-Host with Docker
-
-Deploy the web application alongside your existing services.
-
-Works naturally with a self-hosted Navidrome setup.
-
-</td>
-</tr>
-</table>
+| Feature | Description |
+| --- | --- |
+| 🎵 **Your Library** | Browse your entire music collection through Navidrome — artists, albums, tracks, playlists, recently added, and recommended music. |
+| 🔎 **Fast Search** | Search across your music library using Navidrome's API. Find artists, albums, songs, and playlists without leaving the app. |
+| 🎤 **Lyrics** | A dedicated lyrics experience inspired by modern streaming clients — synchronized lyrics, active-line highlighting, animated interface, and full-screen view. |
+| 📱 **Responsive Design** | One interface across desktop, laptop, and mobile. |
+| 🖥️ **Desktop App** | Run Spotify Local as a native desktop application using **Tauri**. |
+| 🐳 **Self-Host with Docker** | Deploy the web application alongside your existing services. Works naturally with a self-hosted Navidrome setup. |
 
 ---
 
 ## 🧠 How It Works
 
-```text
+```
 ┌─────────────────────────────┐
 │                             │
 │       🎵 Spotify Local      │
@@ -212,7 +148,7 @@ npm run tauri build
 
 Built applications will be placed in:
 
-```text
+```
 src-tauri/target/release/bundle/
 ```
 
@@ -257,7 +193,7 @@ docker run -d \
 
 Spotify Local will now be available at:
 
-```text
+```
 http://localhost:3000
 ```
 
@@ -311,7 +247,7 @@ You will need:
 
 Example:
 
-```text
+```
 https://music.example.com
 ```
 
@@ -355,7 +291,7 @@ npm run dev
 
 The development server will be available at:
 
-```text
+```
 http://localhost:3000
 ```
 
