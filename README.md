@@ -95,7 +95,6 @@ One interface across different screen sizes.
 - Desktop
 - Laptop
 - Mobile
-- Touch-friendly layouts
 
 </td>
 </tr>
@@ -107,7 +106,6 @@ One interface across different screen sizes.
 
 Run Spotify Local as a native desktop application using **Tauri**.
 
-Lightweight, fast, and integrated with your desktop.
 
 </td>
 <td width="50%">
