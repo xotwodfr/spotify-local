@@ -136,3 +136,18 @@ export function IconSettings(props: IconProps) {
     </svg>
   );
 }
+export function IconClose(props: IconProps) {
+  return (
+    <svg {...base(props, "0 0 24 24")}>
+      <path d="M5.105 3.604 3.604 5.105 10.5 12l-6.896 6.895 1.5 1.5L12 13.5l6.895 6.895 1.5-1.5L13.5 12l6.895-6.895-1.5-1.5L12 10.5z" />
+    </svg>
+  );
+}
+
+export function IconDockLyrics(props: IconProps) {
+  return (
+    <svg {...base(props, "0 0 24 24")}>
+      <path d="M4 3.5a2.5 2.5 0 0 0-2.5 2.5v9A2.5 2.5 0 0 0 4 17.5h9.5l4.5 3.6V17.5H20a2.5 2.5 0 0 0 2.5-2.5V6A2.5 2.5 0 0 0 20 3.5zm3 4.5h10v1.8H7zm0 4h7v1.8H7z" />
+    </svg>
+  );
+}

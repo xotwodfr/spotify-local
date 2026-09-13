@@ -13,7 +13,7 @@ export function PageShell({
   children: ReactNode;
 }) {
   return (
-    <div className="grid h-full w-full grid-cols-[320px_minmax(0,1fr)] grid-rows-[64px_minmax(0,1fr)_82px] gap-2 bg-[color-mix(in_oklab,var(--frame)_88%,transparent)] p-2 text-(--fg-primary) max-lg:grid-cols-1 max-[640px]:grid-rows-[64px_minmax(0,1fr)_0px] max-[640px]:gap-0 max-[640px]:p-0">
+    <div className="grid h-full w-full grid-cols-[320px_minmax(0,1fr)] grid-rows-[64px_minmax(0,1fr)_82px] gap-2 bg-[color-mix(in_oklab,var(--frame)_88%,transparent)] p-2 text-(--fg-primary) max-lg:grid-cols-1 max-lg:pb-[58px] max-[640px]:grid-rows-[64px_minmax(0,1fr)_0px] max-[640px]:gap-0 max-[640px]:p-0 max-[640px]:pt-0">
       <div className="col-span-full">
         <TopBar />
       </div>

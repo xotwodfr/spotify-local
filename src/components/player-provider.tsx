@@ -11,7 +11,9 @@ import {
   type ReactNode,
 } from "react";
 
+import { playbackClock } from "@/lib/audio/clock";
 import { getSessionInfo } from "@/lib/navidrome/auth";
+import { coverArtUrl } from "@/lib/navidrome/client";
 import {
   getPlayQueue,
   savePlayQueue,
@@ -30,7 +32,8 @@ interface PlayerContextValue {
   index: number;
   current: NSong | null;
   isPlaying: boolean;
-  currentTime: number;
+  /** Continuous playback position, read directly from the audio element. */
+  getTime: () => number;
   duration: number;
   volume: number;
   repeat: RepeatMode;
@@ -128,7 +131,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<NSong[]>([]);
   const [index, setIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState<number>(() => {
     if (typeof window === "undefined") return 1;
@@ -146,6 +148,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [shuffle, setShuffle] = useState(false);
 
   const current: NSong | null = index >= 0 && index < queue.length ? queue[index] : null;
+
+  // The UI always follows the active element's own clock.
+  const getTime = useCallback(() => playbackClock.getTime(), []);
 
   function commitQueue(list: NSong[], nextIndex: number) {
     queueRef.current = list;
@@ -188,7 +193,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         audio.load();
       }
       audio.currentTime = 0;
-      setCurrentTime(0);
       void audio
         .play()
         .then(() => setIsPlaying(true))
@@ -215,6 +219,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
       activeAudioRef.current = incoming;
+      playbackClock.setElement(incoming);
       beginOn(incoming);
       incoming.volume = 0;
       fadeVolume(incoming, 0, targetVolume, crossfade * 1000, fadeTimersRef.current);
@@ -236,6 +241,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const audio = outgoing ?? audioRef.current;
     if (!audio) return;
     activeAudioRef.current = audio;
+    playbackClock.setElement(audio);
     beginOn(audio);
     const timer = fadeTimersRef.current.get(audio);
     if (timer) clearInterval(timer);
@@ -300,7 +306,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const audio = activeAudioRef.current;
     if (audio && audio.currentTime > 3) {
       audio.currentTime = 0;
-      setCurrentTime(0);
       return;
     }
     const currentIndex = indexRef.current;
@@ -320,7 +325,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!audio) return;
     if (!Number.isFinite(position) || position < 0) return;
     audio.currentTime = position;
-    setCurrentTime(position);
   }, []);
 
   const changeVolume = useCallback((nextVolume: number) => {
@@ -382,7 +386,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const clearQueue = useCallback(() => {
     commitQueue([], -1);
-    setCurrentTime(0);
     setDuration(0);
     setIsPlaying(false);
     for (const el of [audioRef.current, audioBRef.current]) {
@@ -456,6 +459,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           audio.src = streamUrl(entries[startIndex].id);
           audio.load();
           activeAudioRef.current = audio;
+          playbackClock.setElement(audio);
         }
         const savedPosition =
           typeof saved?.position === "number" ? saved.position : null;
@@ -476,7 +480,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       index,
       current,
       isPlaying,
-      currentTime,
+      getTime,
       duration,
       volume,
       repeat,
@@ -502,7 +506,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       index,
       current,
       isPlaying,
-      currentTime,
+      getTime,
       duration,
       volume,
       repeat,
@@ -528,6 +532,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (key === "a") {
       audioRef.current = node;
       activeAudioRef.current = activeAudioRef.current ?? node;
+      if (activeAudioRef.current === node) playbackClock.setElement(node);
     } else {
       audioBRef.current = node;
     }
@@ -540,7 +545,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setDuration(event.currentTarget.duration || 0);
     if (pendingSeekRef.current !== null) {
       event.currentTarget.currentTime = pendingSeekRef.current;
-      setCurrentTime(pendingSeekRef.current);
       pendingSeekRef.current = null;
     }
   };
@@ -548,7 +552,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const handleTimeUpdate = (event: React.SyntheticEvent<HTMLAudioElement>) => {
     if (event.currentTarget !== activeAudioRef.current) return;
     const audio = event.currentTarget;
-    setCurrentTime(audio.currentTime);
 
     // Natural-end crossfade: start the next track while the current one is
     // still sounding, so the two genuinely overlap. `ended` fires too late for
@@ -609,6 +612,51 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       next();
     }
   };
+
+  // OS-level media controls (lock screen, media keys, BT headsets).
+  const artworkSrc = current?.coverArt ? coverArtUrl(current.coverArt, 320) : null;
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    const session = navigator.mediaSession;
+    if (!current) {
+      session.metadata = null;
+      session.playbackState = "none";
+      return;
+    }
+    session.metadata = new MediaMetadata({
+      title: current.title,
+      artist: current.artist ?? "",
+      album: current.album ?? "",
+      artwork: artworkSrc ? [{ src: artworkSrc, sizes: "320x320", type: "image/jpeg" }] : [],
+    });
+    session.playbackState = isPlaying ? "playing" : "paused";
+  }, [current, isPlaying, artworkSrc]);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    const session = navigator.mediaSession;
+    const set = (action: MediaSessionAction, handler: MediaSessionActionHandler | null) => {
+      try {
+        session.setActionHandler(action, handler);
+      } catch {
+        // Action unsupported in this browser.
+      }
+    };
+    set("play", () => toggle());
+    set("pause", () => toggle());
+    set("nexttrack", () => next());
+    set("previoustrack", () => previous());
+    set("seekto", (details) => {
+      if (typeof details.seekTime === "number") seek(details.seekTime);
+    });
+    return () => {
+      set("play", null);
+      set("pause", null);
+      set("nexttrack", null);
+      set("previoustrack", null);
+      set("seekto", null);
+    };
+  }, [toggle, next, previous, seek]);
 
   return (
     <PlayerContext.Provider value={value}>

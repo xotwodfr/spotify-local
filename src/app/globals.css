@@ -389,21 +389,31 @@ html[data-motion="reduced"] .lyrics-line {
    gradient-clipped typography with per-word motion.
    =========================================================================== */
 
-.lyrics-popout {
+.lyrics-overlay {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: var(--npbar-height, 82px);
+  inset: 0;
   z-index: 40;
   display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+  padding: 0 24px;
+  padding-bottom: calc(var(--npbar-height, 82px) + 8px);
+}
+
+.lyrics-popout {
+  position: relative;
+  pointer-events: auto;
+  width: min(880px, 100%);
+  height: clamp(400px, 56vh, 680px);
+  display: flex;
   flex-direction: column;
-  height: clamp(400px, 55vh, 720px);
   overflow: hidden;
-  border-radius: 14px 14px 0 0;
+  border-radius: 24px;
   background:
     linear-gradient(180deg, #101010 0%, #070707 100%);
   box-shadow:
-    0 -18px 50px rgba(0, 0, 0, 0.55),
+    0 24px 64px rgba(0, 0, 0, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.07);
   transform-origin: bottom center;
   animation: lyrics-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1);
@@ -412,7 +422,7 @@ html[data-motion="reduced"] .lyrics-line {
 @keyframes lyrics-rise {
   from {
     opacity: 0;
-    transform: translateY(48px) scale(0.985);
+    transform: translateY(48px) scale(0.97);
   }
   to {
     opacity: 1;
@@ -422,10 +432,13 @@ html[data-motion="reduced"] .lyrics-line {
 
 /* The Now Playing bar hides below 640px (mobile mini-bar at 58px). */
 @media (max-width: 640px) {
+  .lyrics-overlay {
+    padding: 0 10px;
+    padding-bottom: calc(var(--npbar-height-mobile, 58px) + 6px);
+  }
   .lyrics-popout {
-    bottom: var(--npbar-height-mobile, 58px);
-    height: min(68vh, calc(100dvh - 58px - 62px));
-    border-radius: 12px 12px 0 0;
+    height: min(62vh, calc(100dvh - 58px - 70px));
+    border-radius: 18px;
   }
 }
 
@@ -623,4 +636,56 @@ html[data-motion="off"] .lyrics-word {
     padding-top: 14vh !important;
     padding-bottom: 22vh !important;
   }
+}
+
+/* --- Floating lyrics window --- */
+
+.floating-lyrics {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, #101010 0%, #070707 100%);
+  box-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.65),
+    0 8px 24px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  animation: lyrics-rise 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.floating-lyrics .lyrics-scroll {
+  padding-top: 8vh !important;
+  padding-bottom: 14vh !important;
+}
+
+html[data-motion="reduced"] .floating-lyrics,
+html[data-motion="off"] .floating-lyrics,
+html[data-motion="reduced"] .lyrics-popout,
+html[data-motion="off"] .lyrics-popout {
+  animation: none !important;
+}
+
+/* --- Lyrics loading skeleton --- */
+
+.lyrics-skeleton {
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.05) 30%,
+    rgba(255, 255, 255, 0.11) 50%,
+    rgba(255, 255, 255, 0.05) 70%
+  );
+  background-size: 200% 100%;
+  animation: lyrics-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes lyrics-shimmer {
+  from { background-position: 130% 0; }
+  to { background-position: -70% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lyrics-skeleton { animation: none; }
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 import { IconCreate, IconPause, IconPlay } from "@/components/icons";
 import { formatDuration } from "@/lib/navidrome/format";
 import type { NSong } from "@/lib/navidrome/types";
@@ -15,7 +17,9 @@ interface TrackRowProps {
   onAdd?: () => void;
 }
 
-export function TrackRow({
+// Memoized: long album/playlist/queue lists render many rows; rows only need
+// to re-render when their own props change.
+export const TrackRow = memo(function TrackRow({
   song,
   index,
   onPlay,
@@ -91,4 +95,4 @@ export function TrackRow({
       </div>
     </div>
   );
-}
+});

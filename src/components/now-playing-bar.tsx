@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Artwork } from "@/components/artwork";
+import { FloatingLyrics } from "@/components/floating-lyrics";
 import { LyricsPanel } from "@/components/lyrics-panel";
 import { QueueDrawer } from "@/components/queue-drawer";
 import {
+  IconDockLyrics,
   IconLyrics,
   IconNext,
   IconQueue,
@@ -18,6 +20,7 @@ import {
   IconVolume,
 } from "@/components/icons";
 import { usePlayer } from "@/components/player-provider";
+import { usePlaybackClock } from "@/lib/audio/clock";
 import { coverArtUrl } from "@/lib/navidrome/client";
 import { formatDuration } from "@/lib/navidrome/format";
 import { cn } from "@/lib/utils";
@@ -59,6 +62,12 @@ export function NowPlayingBar() {
   const player = usePlayer();
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
+  const [floatingOpen, setFloatingOpen] = useState(false);
+
+  // Progress bar subscribes to the media element directly — its ~4 Hz ticks
+  // no longer re-render the whole bar or any context consumer.
+  const { time, duration: clockDuration } = usePlaybackClock();
+  const safeDuration = clockDuration || player.duration;
 
   if (!player.connected) return <ConnectBanner />;
   if (!player.current) return <IdleBanner />;
@@ -93,18 +102,26 @@ export function NowPlayingBar() {
               </button>
             </div>
             <div className="hidden items-center gap-2 text-xs text-(--text-subdued) lg:flex">
-              <span className="w-10 text-right tabular-nums">{formatDuration(player.currentTime)}</span>
-              <input type="range" min={0} max={Math.floor(player.duration || 0)} step={1} value={Math.min(player.currentTime, player.duration || 0)} onChange={(event) => player.seek(Number(event.currentTarget.value))} className="h-1 w-56 cursor-pointer accent-(--accent)" />
-              <span className="w-10 tabular-nums">{formatDuration(player.duration)}</span>
+              <span className="w-10 text-right tabular-nums">{formatDuration(time)}</span>
+              <input type="range" min={0} max={Math.floor(safeDuration || 0)} step={1} value={Math.min(time, safeDuration || 0)} onChange={(event) => player.seek(Number(event.currentTarget.value))} className="h-1 w-56 cursor-pointer accent-(--accent)" />
+              <span className="w-10 tabular-nums">{formatDuration(safeDuration)}</span>
             </div>
           </div>          <div className="flex items-center justify-end gap-2">
-            <button type="button" onClick={() => { setQueueOpen(false); setLyricsOpen((open) => !open); }} aria-label={lyricsOpen ? "Close lyrics" : "Open lyrics"} aria-pressed={lyricsOpen} title={lyricsOpen ? "Close lyrics" : "Lyrics"} className={cn(
+            <button type="button" onClick={() => { setQueueOpen(false); setLyricsOpen((open) => !open); }} aria-label={lyricsOpen ? "Close lyrics" : "Open lyrics"} aria-pressed={lyricsOpen} title={lyricsOpen ? "Close lyrics" : "Lyrics panel"} className={cn(
                 "flex h-8 w-8 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80",
                 lyricsOpen
                   ? "bg-(--accent) text-black hover:bg-(--accent-hover)"
                   : "text-(--text-subdued) hover:text-(--fg-primary)",
               )}>
               <IconLyrics className="h-4 w-4 fill-current" />
+            </button>
+            <button type="button" onClick={() => { setLyricsOpen(false); setFloatingOpen((open) => !open); }} aria-label={floatingOpen ? "Close floating lyrics" : "Open floating lyrics"} aria-pressed={floatingOpen} title="Floating lyrics window" className={cn(
+                "hidden h-8 w-8 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80 lg:flex",
+                floatingOpen
+                  ? "bg-(--accent) text-black hover:bg-(--accent-hover)"
+                  : "text-(--text-subdued) hover:text-(--fg-primary)",
+              )}>
+              <IconDockLyrics className="h-4 w-4 fill-current" />
             </button>
             <button type="button" onClick={() => { setLyricsOpen(false); setQueueOpen((open) => !open); }} aria-label={queueOpen ? "Close queue" : "Open queue"} aria-pressed={queueOpen} title={queueOpen ? "Close queue" : "Queue"} className={cn(
                 "flex h-8 w-8 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80",
@@ -122,6 +139,7 @@ export function NowPlayingBar() {
         </div>
       </div>
       {lyricsOpen && <LyricsPanel onClose={() => setLyricsOpen(false)} />}
+      {floatingOpen && <FloatingLyrics onClose={() => setFloatingOpen(false)} />}
       {queueOpen && <QueueDrawer onClose={() => setQueueOpen(false)} />}
     </>
   );

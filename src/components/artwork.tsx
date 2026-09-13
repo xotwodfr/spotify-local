@@ -31,6 +31,8 @@ export function Artwork({
     <img
       src={src}
       alt={alt}
+      loading="lazy"
+      decoding="async"
       className={cn("shrink-0 object-cover", SIZES[size], SHAPES[shape], className)}
     />
   ) : (
