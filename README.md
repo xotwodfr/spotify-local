@@ -22,7 +22,7 @@
 
 ---
 
-## ✨ What is Spotify Local?
+##  What is Spotify Local?
 
 Spotify Local is a modern music client for your own music library.
 
@@ -34,13 +34,13 @@ Your library stays yours.
 
 ---
 
-## 🚀 Features
+## Features
 
 <table>
 <tr>
 <td width="50%">
 
-### 🎧 Music Library
+### Music Library
 
 Browse your:
 
@@ -64,14 +64,14 @@ Quickly search your entire music library through Navidrome's API.
 <tr>
 <td width="50%">
 
-### 🎤 Lyrics
+### Lyrics
 
 Built-in lyrics support with a dedicated Spotify-inspired lyrics experience.
 
 </td>
 <td width="50%">
 
-### 📱 Responsive
+### Responsive
 
 Designed to work across:
 
@@ -85,14 +85,14 @@ Designed to work across:
 <tr>
 <td width="50%">
 
-### 🖥️ Native Linux App
+### Native Linux App
 
 Run Spotify Local as a native Linux desktop application using Tauri.
 
 </td>
 <td width="50%">
 
-### 🐳 Docker
+### Docker
 
 Run the web application using Docker for easy self-hosting.
 
