@@ -14,6 +14,8 @@ export type BackgroundIntensity = "subtle" | "balanced" | "strong";
 export type AnimationMode = "full" | "reduced" | "off";
 export type PlaybackQuality = "original" | "high" | "medium" | "low";
 export type LyricsFontSize = "sm" | "md" | "lg" | "xl";
+export type LyricsStyle = "wordsync" | "standard" | "minimal";
+export type WordAnimation = "off" | "subtle" | "normal" | "strong";
 
 /**
  * Typed, persisted application settings. Everything that influences how the
@@ -30,7 +32,8 @@ export interface AppSettings {
   wordSyncedLyrics: boolean;
   autoScrollLyrics: boolean;
   centerActiveLyric: boolean;
-  wordHighlighting: boolean;
+  lyricsStyle: LyricsStyle;
+  wordAnimation: WordAnimation;
   lyricsFontSize: LyricsFontSize;
   showTranslation: boolean;
   backgroundEffects: boolean;
@@ -47,7 +50,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   wordSyncedLyrics: true,
   autoScrollLyrics: true,
   centerActiveLyric: true,
-  wordHighlighting: true,
+  lyricsStyle: "wordsync",
+  wordAnimation: "normal",
   lyricsFontSize: "md",
   showTranslation: true,
   backgroundEffects: true,
@@ -61,6 +65,8 @@ const INTENSITIES: BackgroundIntensity[] = ["subtle", "balanced", "strong"];
 const ANIMATIONS: AnimationMode[] = ["full", "reduced", "off"];
 const QUALITIES: PlaybackQuality[] = ["original", "high", "medium", "low"];
 const FONT_SIZES: LyricsFontSize[] = ["sm", "md", "lg", "xl"];
+const LYRICS_STYLES: LyricsStyle[] = ["wordsync", "standard", "minimal"];
+const WORD_ANIMATIONS: WordAnimation[] = ["off", "subtle", "normal", "strong"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -111,10 +117,12 @@ export function loadSettings(): AppSettings {
         typeof parsed.centerActiveLyric === "boolean"
           ? parsed.centerActiveLyric
           : DEFAULT_SETTINGS.centerActiveLyric,
-      wordHighlighting:
-        typeof parsed.wordHighlighting === "boolean"
-          ? parsed.wordHighlighting
-          : DEFAULT_SETTINGS.wordHighlighting,
+      lyricsStyle: pickEnum(parsed.lyricsStyle, LYRICS_STYLES, DEFAULT_SETTINGS.lyricsStyle),
+      wordAnimation: pickEnum(
+        parsed.wordAnimation,
+        WORD_ANIMATIONS,
+        DEFAULT_SETTINGS.wordAnimation,
+      ),
       lyricsFontSize: pickEnum(
         parsed.lyricsFontSize,
         FONT_SIZES,

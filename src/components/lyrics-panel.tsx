@@ -2,10 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Artwork } from "@/components/artwork";
-import { IconChevronDown, IconNext, IconPause, IconPlay } from "@/components/icons";
+import { IconChevronDown } from "@/components/icons";
 import { usePlayer } from "@/components/player-provider";
-import { coverArtUrl } from "@/lib/navidrome/client";
 import { useSettings } from "@/lib/settings";
 import {
   fetchLyrics,
@@ -22,12 +20,6 @@ import {
   recordLyricsFailure,
 } from "@/lib/lyrics/client-cache";
 
-/** Base orb size; per-frame scale is applied on top so only transforms are written. */
-const ORB_BASE_W = 360;
-const ORB_BASE_H = 150;
-const ORB_PADDING_X = 84;
-const ORB_PADDING_Y = 36;
-
 /** Spring stiffness for the continuous follow scroll (higher = snappier). */
 const FOLLOW_STIFFNESS = 6;
 /** How long auto-follow stays paused after the user scrolls manually. */
@@ -37,14 +29,17 @@ const SEEK_JUMP_SECONDS = 1.2;
 /** Maximum playback-time extrapolation between reported positions. */
 const MAX_EXTRAPOLATION_SECONDS = 0.75;
 
+/** Peak word scale per animation-strength setting (Word Sync style). */
+const WORD_SCALE: Record<string, number> = { off: 0, subtle: 0.05, normal: 0.1, strong: 0.16 };
+
 const PROVIDER_STORAGE_KEY = "spotify-local/lyrics-provider";
 
-/** Font size mapping for the active lyric line (setting → size/leading). */
+/** Font size mapping for the lyric lines (setting → size). */
 const LINE_FONT_SIZES: Record<string, string> = {
-  sm: "text-2xl leading-9 max-[640px]:text-xl max-[640px]:leading-8",
-  md: "text-3xl leading-[2.75rem] max-[640px]:text-2xl max-[640px]:leading-9",
-  lg: "text-4xl leading-11 max-[640px]:text-3xl max-[640px]:leading-10",
-  xl: "text-5xl leading-[3.4rem] max-[640px]:text-4xl max-[640px]:leading-11",
+  sm: "lyrics-text-sm",
+  md: "lyrics-text-md",
+  lg: "lyrics-text-lg",
+  xl: "lyrics-text-xl",
 };
 
 interface ProviderOption {
@@ -53,23 +48,6 @@ interface ProviderOption {
   description: string;
   wordSync: boolean;
   available: boolean;
-}
-
-/** Layout box of one lyric line in the scroll content coordinate space. */
-interface LineGeometry {
-  top: number;
-  height: number;
-  left: number;
-  width: number;
-  textHeight: number;
-}
-
-function clamp01(value: number): number {
-  return Math.min(1, Math.max(0, value));
-}
-
-function easeOutCubic(value: number): number {
-  return 1 - Math.pow(1 - value, 3);
 }
 
 /** Binary search for the lyric active at `time` (lines are sorted by timestamp). */
@@ -89,11 +67,31 @@ function findActiveIndex(lines: LyricLine[], time: number): number {
   return found;
 }
 
+/**
+ * Word motion envelope, p ∈ [0, 1+]: how "sung" a word is at playback time.
+ * Rises quickly as the word begins, peaks while it is being sung, then eases
+ * back down right after it ends — the breathing curve that makes words feel
+ * alive without ever looking jumpy.
+ */
+function wordEnvelope(time: number, start: number, end: number): number {
+  if (time <= start) return 0;
+  const duration = Math.max(0.05, end - start);
+  const p = (time - start) / duration;
+  // Rise: 0→1 over the first 35% (smoothstep), hold, fall: 1→0 from 75%→135%.
+  if (p < 0.35) {
+    const t = p / 0.35;
+    return t * t * (3 - 2 * t);
+  }
+  if (p < 0.75) return 1;
+  const t = Math.min(1, (p - 0.75) / 0.6);
+  const decay = 1 - t;
+  return decay * decay * (3 - 2 * decay);
+}
+
 export function LyricsPanel({ onClose }: { onClose: () => void }) {
   const player = usePlayer();
   const { settings } = useSettings();
   const song = player.current;
-  const artUrl = song?.coverArt ? coverArtUrl(song.coverArt, 480) : null;
   const fontClass = LINE_FONT_SIZES[settings.lyricsFontSize] ?? LINE_FONT_SIZES.md;
   const [state, setState] = useState<{ key: string; kind: "loading" | "loaded" | "error"; result?: LyricsResult; provenance?: LyricsProvenance; message?: string }>({ key: "", kind: "loading" });
   const [retryAttempt, setRetryAttempt] = useState(0);
@@ -102,8 +100,7 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
   const [providerOptions, setProviderOptions] = useState<ProviderOption[]>([]);
   const [selectorOpen, setSelectorOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const orbRef = useRef<HTMLDivElement | null>(null);
-  const lineElsRef = useRef<Map<number, HTMLButtonElement>>(new Map());
+  const lineElsRef = useRef<Map<number, HTMLDivElement>>(new Map());
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestRef = useRef(0);
 
@@ -132,7 +129,6 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
       .then((data: { providers?: ProviderOption[] }) => {
         if (!cancelled && Array.isArray(data.providers)) {
           setProviderOptions(data.providers);
-          // Drop a stale persisted selection for a provider that no longer exists.
           setProviderSelection((current) =>
             current === "auto" || data.providers!.some((option) => option.id === current)
               ? current
@@ -154,10 +150,18 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
     } catch {
       // storage unavailable
     }
-    // Force a refetch under the new selection.
     setState({ key: "", kind: "loading" });
     setRetryAttempt((value) => value + 1);
   }
+
+  // Escape closes the panel.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const cacheKey = useMemo(
     () => (song ? [song.id, song.title, song.artist, song.album].join("\u0000") : ""),
@@ -216,8 +220,7 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
 
   const syncedLines = status.kind === "loaded" && status.result?.status === "synced" ? status.result.lines : null;
 
-  // Mirror the shared player state into refs after every render. Reported positions
-  // re-anchor the time interpolation; large jumps flag a seek snap.
+  // Mirror shared player state into refs after every render (interpolation anchor).
   useEffect(() => {
     liveRef.current.lines = syncedLines ?? [];
     liveRef.current.playing = player.isPlaying;
@@ -236,40 +239,37 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
     }, USER_SCROLL_RESUME_MS);
   }
 
-  // Single rAF loop for the whole panel: interpolated time, follow spring, orb,
-  // and per-word karaoke progress writes (direct style writes, no React state).
+  // Single rAF loop: interpolated time, follow spring, and per-word motion.
+  // All visual updates are direct style writes — no React re-renders per frame.
   useEffect(() => {
     const container = scrollRef.current;
-    const orb = orbRef.current;
     if (!container) return;
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const autoScrollEnabled = settings.autoScrollLyrics;
-    const showOrb = settings.backgroundEffects;
-    const useKaraoke = settings.wordSyncedLyrics && settings.wordHighlighting;
-    const focusRatio = settings.centerActiveLyric ? 0.5 : 0.4;
+    const style = settings.lyricsStyle;
+    const wordScale = reducedMotion ? 0 : WORD_SCALE[settings.wordAnimation] ?? 0.1;
+    const useWordMotion = style === "wordsync" && settings.wordSyncedLyrics && wordScale > 0;
+    const useWordFill = style === "standard" && settings.wordSyncedLyrics;
+    const focusRatio = settings.centerActiveLyric ? 0.42 : 0.36;
 
-    const orbState = { x: 0, y: 0, init: false };
     const spring = { y: 0, init: false };
     let measuredFor = -2;
-    let geometry: LineGeometry | null = null;
+    let geometry: { top: number; height: number } | null = null;
     let lastActive = -2;
+    let activeSpans: HTMLElement[] | null = null;
     let raf = 0;
     let last = performance.now();
 
-    const measure = (index: number): LineGeometry | null => {
-      const button = lineElsRef.current.get(index);
-      if (!button) return null;
+    const measure = (index: number): { top: number; height: number } | null => {
+      const line = lineElsRef.current.get(index);
+      if (!line) return null;
       const containerRect = container.getBoundingClientRect();
-      const buttonRect = button.getBoundingClientRect();
-      const spanRect = (button.firstElementChild ?? button).getBoundingClientRect();
+      const lineRect = line.getBoundingClientRect();
       return {
-        top: buttonRect.top - containerRect.top + container.scrollTop,
-        height: buttonRect.height,
-        left: spanRect.left - containerRect.left + container.scrollLeft,
-        width: spanRect.width,
-        textHeight: spanRect.height,
+        top: lineRect.top - containerRect.top + container.scrollTop,
+        height: lineRect.height,
       };
     };
 
@@ -283,6 +283,12 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
     if (typeof document.fonts?.ready?.then === "function") {
       void document.fonts.ready.then(invalidate).catch(() => {});
     }
+
+    const collectSpans = (index: number): HTMLElement[] => {
+      const line = lineElsRef.current.get(index);
+      if (!line) return [];
+      return Array.from(line.querySelectorAll<HTMLElement>("[data-word]"));
+    };
 
     const frame = (now: number) => {
       const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
@@ -304,6 +310,14 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
       }
 
       if (active !== lastActive) {
+        // Reset motion on the outgoing line's words in one pass.
+        if (activeSpans) {
+          for (const span of activeSpans) {
+            span.style.transform = "";
+            span.style.setProperty("--wpos", "-30%");
+          }
+        }
+        activeSpans = null;
         lastActive = active;
         measuredFor = -2;
         setActiveIndex(active);
@@ -341,75 +355,36 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
           }
         }
       } else {
-        // Manual reading mode: leave the user's scroll position alone.
         snapRef.current = false;
       }
 
-      // --- Word-level karaoke: fill active words up to interpolated time ---
-      if (useKaraoke && active >= 0) {
+      // --- Word-level motion: scale while sung + gradient sweep position ---
+      if (active >= 0) {
         const line = lines[active];
         const words = line?.words;
-        if (words && words.length >= 2) {
-          const button = lineElsRef.current.get(active);
-          if (button) {
-            const spans = button.querySelectorAll<HTMLElement>("[data-word]");
-            spans.forEach((span, index) => {
-              const word = words[index];
-              if (!word) return;
+        const hasWords = Boolean(words && words.length >= 2);
+
+        if ((useWordMotion || useWordFill) && hasWords) {
+          if (!activeSpans) activeSpans = collectSpans(active);
+          const list = words!;
+          for (let index = 0; index < activeSpans.length; index += 1) {
+            const word = list[index];
+            const span = activeSpans[index];
+            if (!word || !span) continue;
+            if (useWordMotion) {
+              const envelope = wordEnvelope(time, word.start, word.end);
+              // Direct transform write: reliable across CSS optimizers, and the
+              // only per-frame cost is a style recalc on already-composited spans.
+              span.style.transform = `scale(${(1 + wordScale * envelope).toFixed(4)})`;
+              // Gradient sweep: -30% (not started) → 115% (fully sung).
+              const progress = time >= word.end ? 1 : time <= word.start ? 0 : (time - word.start) / Math.max(0.001, word.end - word.start);
+              const position = -30 + progress * 145;
+              span.style.setProperty("--wpos", `${position.toFixed(2)}%`);
+            } else if (useWordFill) {
               const progress = time >= word.end ? 1 : time <= word.start ? 0 : (time - word.start) / Math.max(0.001, word.end - word.start);
               span.style.setProperty("--word-progress", progress.toFixed(3));
-            });
+            }
           }
-        }
-      }
-
-      // --- Organic orb: grows with lyric progress, glides to the next line ---
-      if (orb) {
-        if (!showOrb || active < 0 || !geometry) {
-          orb.style.opacity = "0";
-          orbState.init = false;
-        } else {
-          const current = lines[active];
-          const next = lines[active + 1];
-          const progress = current
-            ? next
-              ? clamp01((time - current.time) / Math.max(0.4, (next.time - current.time)))
-              : clamp01((time - current.time) / 5)
-            : 0;
-
-          const targetX = geometry.left + geometry.width / 2;
-          const targetOrbY = geometry.top + geometry.height / 2;
-          const targetW = geometry.width + ORB_PADDING_X;
-          const targetH = geometry.textHeight + ORB_PADDING_Y;
-
-          const t = now / 1000;
-          const grow = 0.72 + 0.28 * easeOutCubic(progress);
-          const breatheX = reducedMotion ? 0 : 0.045 * Math.sin(t * 1.7);
-          const breatheY = reducedMotion ? 0 : 0.06 * Math.sin(t * 1.1 + 1.3);
-          const rotate = reducedMotion ? 0 : 5 * Math.sin(t * 0.45);
-
-          const distance = Math.abs(targetOrbY - orbState.y);
-          const k = !orbState.init || distance > 260 ? 1 : 1 - Math.exp(-dt * 7);
-
-          if (!orbState.init) {
-            orbState.x = targetX;
-            orbState.y = targetOrbY;
-            orbState.init = true;
-          } else {
-            orbState.x += (targetX - orbState.x) * k;
-            orbState.y += (targetOrbY - orbState.y) * k;
-          }
-
-          const scaleX = (targetW / ORB_BASE_W) * grow * (1 + breatheX);
-          const scaleY = (targetH / ORB_BASE_H) * grow * (1 + breatheY);
-
-          const radiusA = 55 + 8 * Math.sin(t * 0.9);
-          const radiusB = 45 + 7 * Math.sin(t * 0.7 + 2.1);
-          const opacity = 0.42 + 0.3 * easeOutCubic(progress) + 0.05 * Math.sin(t * 2.3);
-
-          orb.style.opacity = String(Math.min(0.85, opacity));
-          orb.style.borderRadius = `${radiusA}% ${100 - radiusA}% ${radiusB}% ${100 - radiusB}% / ${radiusB}% ${radiusA}% ${100 - radiusA}% ${100 - radiusB}%`;
-          orb.style.transform = `translate3d(${orbState.x - ORB_BASE_W / 2}px, ${orbState.y - ORB_BASE_H / 2}px, 0) rotate(${rotate}deg) scale(${scaleX}, ${scaleY})`;
         }
       }
 
@@ -421,14 +396,9 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
       cancelAnimationFrame(raf);
       resizeObserver.disconnect();
       window.removeEventListener("resize", invalidate);
-    };
-  }, [syncedLines, settings.autoScrollLyrics, settings.centerActiveLyric, settings.backgroundEffects, settings.wordHighlighting, settings.wordSyncedLyrics]);
-
-  useEffect(() => {
-    return () => {
       if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
     };
-  }, []);
+  }, [syncedLines, settings.autoScrollLyrics, settings.centerActiveLyric, settings.lyricsStyle, settings.wordAnimation, settings.wordSyncedLyrics]);
 
   const providerLabel = useMemo(() => {
     if (providerSelection === "auto") {
@@ -436,49 +406,31 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
       return resolved && resolved !== "None" ? `Automatic · ${resolved}` : "Automatic";
     }
     return providerOptions.find((option) => option.id === providerSelection)?.name ?? providerSelection;
-  }, [providerSelection, status.provenance, providerOptions]);  return (
+  }, [providerSelection, status.provenance, providerOptions]);
+
+  const wordStyleOn = settings.lyricsStyle === "wordsync" && settings.wordSyncedLyrics;
+  const standardFillOn = settings.lyricsStyle === "standard" && settings.wordSyncedLyrics;
+
+  return (
     <section
       aria-label="Lyrics"
-      className="lyrics-panel fixed inset-0 z-50 flex flex-col overflow-hidden bg-(--frame) animate-in fade-in duration-500"
+      className="lyrics-popout"
     >
-      {/* Full-bleed artwork backdrop: heavily blurred, deeply dimmed so text stays crisp. */}
-      {artUrl && (
-        <img
-          aria-hidden
-          alt=""
-          src={artUrl}
-          className="pointer-events-none absolute inset-0 h-full w-full scale-150 object-cover opacity-40 blur-[90px] saturate-[1.6] will-change-transform"
-        />
+      {/* Ambient artwork background: two soft color fields, driven by the app palette */}
+      {settings.backgroundEffects && (
+        <div aria-hidden className="lyrics-dynamic-bg">
+          <div className="lyrics-dynamic-blob lyrics-dynamic-blob-a" />
+          <div className="lyrics-dynamic-blob lyrics-dynamic-blob-b" />
+        </div>
       )}
-      {/* Deep scrim so the blurred art never competes with the lyrics. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.72)_0%,rgba(0,0,0,0.45)_40%,rgba(0,0,0,0.8)_100%)]"
-      />
+      <div aria-hidden className="lyrics-dynamic-scrim" />
 
-      <header className="relative z-20 flex shrink-0 items-center justify-between gap-3 px-4 py-4 max-[640px]:px-3 max-[640px]:py-3">
-        <div className="flex min-w-0 flex-1 items-center gap-3.5 rounded-2xl border border-white/10 bg-black/35 px-4 py-3 backdrop-blur-2xl max-[640px]:gap-2.5 max-[640px]:rounded-xl max-[640px]:px-3 max-[640px]:py-2">
-          <Artwork src={artUrl} alt="" size="md" shape="square" className="shadow-lg max-[640px]:!h-9 max-[640px]:!w-9" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-(--fg-primary)">{song?.title ?? "Nothing playing"}</p>
-            <p className="truncate text-xs text-(--text-subdued)">{song?.artist ?? ""}</p>
-          </div>
-          <button
-            type="button"
-            onClick={player.toggle}
-            aria-label={player.isPlaying ? "Pause" : "Play"}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--fg-primary) text-(--frame) transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary) max-[640px]:h-8 max-[640px]:w-8"
-          >
-            {player.isPlaying ? <IconPause className="h-4 w-4 fill-current" /> : <IconPlay className="h-4 w-4 fill-current" />}
-          </button>
-          <button
-            type="button"
-            onClick={player.next}
-            aria-label="Next"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-(--text-subdued) transition-colors hover:text-(--fg-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80 max-[640px]:h-8 max-[640px]:w-8"
-          >
-            <IconNext className="h-4 w-4 fill-current" />
-          </button>
+      <header className="relative z-20 flex shrink-0 items-center justify-between gap-2 px-6 pt-4 max-[640px]:px-4 max-[640px]:pt-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/45">Lyrics</p>
+          <p className="mt-0.5 truncate text-[13px] font-semibold text-white/85">
+            {song ? `${song.title}${song.artist ? ` — ${song.artist}` : ""}` : "Nothing playing"}
+          </p>
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
@@ -489,20 +441,20 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
               aria-haspopup="listbox"
               aria-expanded={selectorOpen}
               title="Lyrics provider"
-              className="flex h-8 max-w-[200px] items-center gap-1.5 rounded-full border border-white/10 bg-white/[.06] px-3 text-xs font-semibold text-(--text-subdued) transition-colors hover:bg-white/10 hover:text-(--fg-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80"
+              className="flex h-7 max-w-[190px] items-center gap-1 rounded-full bg-white/[.07] px-2.5 text-[11px] font-semibold text-white/60 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             >
               <span className="truncate">{providerLabel}</span>
-              <IconChevronDown className={`h-3.5 w-3.5 transition-transform ${selectorOpen ? "rotate-180" : ""}`} />
+              <IconChevronDown className={`h-3 w-3 transition-transform ${selectorOpen ? "rotate-180" : ""}`} />
             </button>
 
             {selectorOpen && (
               <ul
                 role="listbox"
                 aria-label="Lyrics provider"
-                className="absolute right-0 top-10 z-50 w-60 overflow-hidden rounded-lg border border-white/10 bg-(--surface-raised) py-1 shadow-[0_16px_40px_rgba(0,0,0,.6)]"
+                className="absolute right-0 top-9 z-50 w-60 overflow-hidden rounded-lg border border-white/10 bg-[#181818] py-1 shadow-[0_16px_40px_rgba(0,0,0,.6)]"
               >
                 {providerOptions.length === 0 && (
-                  <li className="px-4 py-2 text-sm text-(--text-subdued)">Loading providers…</li>
+                  <li className="px-4 py-2 text-sm text-white/55">Loading providers…</li>
                 )}
                 {providerOptions.map((option) => (
                   <li key={option.id}>
@@ -519,45 +471,25 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
                       <span className="mt-1 flex h-3 w-3 shrink-0 items-center justify-center">
                         <span
                           className={`h-2 w-2 rounded-full ${
-                            providerSelection === option.id ? "bg-(--accent)" : "bg-transparent ring-1 ring-(--fg-primary)/40"
+                            providerSelection === option.id ? "bg-(--accent)" : "bg-transparent ring-1 ring-white/40"
                           }`}
                         />
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold text-(--fg-primary)">{option.name}</span>
-                        <span className="block truncate text-xs text-(--text-subdued)">
+                        <span className="block truncate text-sm font-semibold text-white">{option.name}</span>
+                        <span className="block truncate text-xs text-white/55">
                           {!option.available ? "API key required" : option.description}
                         </span>
                       </span>
                     </button>
                   </li>
                 ))}
-                <li className="border-t border-white/10 px-4 py-2 text-[11px] leading-relaxed text-(--text-subdued)">
-                  Word-synced lyrics by{" "}
-                  <a
-                    href="https://github.com/soitora/lyrics_Api_v2"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-(--fg-primary)/80 underline underline-offset-2 hover:text-(--fg-primary)"
-                  >
-                    Better Lyrics
-                  </a>
-                  , line-synced fallback by{" "}
-                  <a
-                    href="https://lrclib.net"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-(--fg-primary)/80 underline underline-offset-2 hover:text-(--fg-primary)"
-                  >
-                    LRCLIB
-                  </a>
-                </li>
               </ul>
             )}
           </div>
 
-          <button type="button" onClick={onClose} aria-label="Close lyrics" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/35 text-(--text-subdued) backdrop-blur-2xl transition-colors hover:bg-white/10 hover:text-(--fg-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80">
-            <IconChevronDown className="h-5 w-5" />
+          <button type="button" onClick={onClose} aria-label="Close lyrics" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/[.07] text-white/60 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70">
+            <IconChevronDown className="h-4 w-4" />
           </button>
         </div>
       </header>
@@ -568,25 +500,11 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
         onTouchStart={beginUserScroll}
         onPointerDown={beginUserScroll}
         onKeyDown={beginUserScroll}
-        className="lyrics-scroll relative z-10 mx-auto min-h-0 w-full max-w-[760px] flex-1 overflow-y-auto px-6 pb-[38vh] pt-[34vh] [scrollbar-width:thin] [scrollbar-color:var(--scrollbar-tint)_transparent] [mask-image:linear-gradient(180deg,transparent_0,black_16vh,black_calc(100%-20vh),transparent_100%)] max-[640px]:px-4 max-[640px]:pb-[36vh] max-[640px]:pt-[32vh]"
+        className="lyrics-scroll relative z-10 mx-auto min-h-0 w-full max-w-[820px] flex-1 overflow-y-auto px-8 pb-[26vh] pt-[18vh] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-[640px]:px-5"
       >
-        {syncedLines && settings.backgroundEffects && (
-          <div
-            ref={orbRef}
-            aria-hidden
-            className="pointer-events-none absolute left-0 top-0 z-0 opacity-0 blur-xl will-change-transform"
-            style={{
-              width: ORB_BASE_W,
-              height: ORB_BASE_H,
-              background:
-                "radial-gradient(ellipse at center, color-mix(in_oklab,var(--accent)_50%,transparent) 0%, color-mix(in_oklab,var(--accent)_22%,transparent) 48%, color-mix(in_oklab,var(--accent)_0%,transparent) 72%)",
-            }}
-          />
-        )}
+        {!song && <p className="py-16 text-center text-base text-white/50">Play a song to see its lyrics.</p>}
 
-        {!song && <p className="py-16 text-center text-base text-(--text-subdued)">Play a song to see its lyrics.</p>}
-
-        {song && status.kind === "loading" && <p className="py-16 text-center text-base text-(--text-subdued)">Loading lyrics…</p>}
+        {song && status.kind === "loading" && <p className="py-16 text-center text-base text-white/50">Loading lyrics…</p>}
 
         {song && status.kind === "error" && (
           <div className="flex flex-col items-center gap-4 py-16">
@@ -598,7 +516,7 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
                 setState({ key: "", kind: "loading" });
                 setRetryAttempt((value) => value + 1);
               }}
-              className="rounded-full bg-white px-6 py-2 text-sm font-bold text-black transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary) focus-visible:ring-offset-2 focus-visible:ring-offset-(--panel)"
+              className="rounded-full bg-white px-6 py-2 text-sm font-bold text-black transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
               Try again
             </button>
@@ -606,7 +524,7 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
         )}
 
         {song && status.kind === "loaded" && status.result?.status === "none" && (
-          <p className="py-16 text-center text-base text-(--text-subdued)">
+          <p className="py-16 text-center text-base text-white/50">
             {providerSelection === "auto"
               ? "No lyrics available for this track."
               : `No lyrics found from ${providerLabel}.`}
@@ -614,78 +532,68 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
         )}
 
         {song && status.kind === "loaded" && status.result?.status === "plain" && (
-          <p className="whitespace-pre-wrap text-center text-2xl font-bold leading-10 text-(--fg-primary)/90 max-[640px]:text-xl max-[640px]:leading-8">{status.result.plainLyrics}</p>
+          <p className="whitespace-pre-wrap text-center text-xl font-bold leading-8 text-white/85 max-[640px]:text-lg">{status.result.plainLyrics}</p>
         )}
-        {/* Spacer balances the focal point: without lyrics the empty state still sits centered. */}
-        {!syncedLines && <div aria-hidden className="h-[30vh]" />}
 
         {song && status.kind === "loaded" && status.result?.status === "synced" && (
-          <div className="lyrics-lines relative z-10 flex flex-col items-start gap-1">
+          <div className={`lyrics-lines relative z-10 flex flex-col items-start gap-[0.35em] ${fontClass} ${wordStyleOn ? "lyrics-style-wordsync" : standardFillOn ? "lyrics-style-standard" : "lyrics-style-minimal"}`}>
             {status.result.lines.map((line, index) => {
-              const dist = activeIndex < 0 ? 1 : Math.abs(index - activeIndex);
+              const dist = activeIndex < 0 ? 3 : Math.abs(index - activeIndex);
               const isActive = index === activeIndex;
-              const showKaraoke =
-                settings.wordSyncedLyrics &&
-                settings.wordHighlighting &&
-                line.words &&
-                line.words.length >= 2;
+              const hasWords = Boolean(line.words && line.words.length >= 2);
+              const useWords = (wordStyleOn || standardFillOn) && settings.wordSyncedLyrics && hasWords;
               const showTranslation = settings.showTranslation && line.translation;
 
-              let lineClass =
-                `lyrics-line w-full rounded-lg px-4 py-2.5 text-left font-bold tracking-tight transition-all duration-300 ease-out will-change-[opacity,filter] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80 cursor-pointer ${fontClass}`;
-
-              if (isActive) {
-                lineClass += " text-(--fg-primary)";
-              } else if (dist === 1) {
-                lineClass += " text-(--fg-primary)/60 hover:text-(--fg-primary)/85";
-              } else if (dist === 2) {
-                lineClass += " text-(--fg-primary)/35 hover:text-(--fg-primary)/60";
-              } else {
-                lineClass += " text-(--fg-primary)/22 hover:text-(--fg-primary)/45";
-              }
-
               return (
-                <button
+                <div
                   key={`${line.time}-${index}`}
                   ref={(node) => {
                     if (node) lineElsRef.current.set(index, node);
                     else lineElsRef.current.delete(index);
                   }}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => player.seek(line.time)}
-                  className={lineClass}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      player.seek(line.time);
+                    }
+                  }}
+                  aria-label={`Seek to ${line.text}`}
+                  className={`lyrics-line ${isActive ? "is-active" : dist === 1 ? "is-next" : dist === 2 ? "is-far" : "is-distant"}`}
                 >
-                  {showKaraoke ? (
-                    <span className="inline-block max-w-full">
-                      {line.words!.map((word, wordIndex) => (
-                        <span
-                          key={`${word.start}-${wordIndex}`}
-                          data-word
-                          className="karaoke-word"
-                          style={{ "--word-progress": 0 } as React.CSSProperties}
-                        >
-                          {word.text}
-                          {" "}
-                        </span>
-                      ))}
-                    </span>
+                  {useWords ? (
+                    line.words!.map((word, wordIndex) => (
+                      <span
+                        key={`${word.start}-${wordIndex}`}
+                        data-word
+                        data-start={word.start}
+                        className="lyrics-word"
+                        style={{ "--wscale": 1, "--wpos": "-30%", "--word-progress": 0 } as React.CSSProperties}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          player.seek(word.start);
+                        }}
+                      >
+                        {word.text}
+                      </span>
+                    ))
                   ) : (
-                    <span className="inline-block max-w-full">{line.text}</span>
+                    <span className="lyrics-plain">{line.text}</span>
                   )}
                   {showTranslation && (
-                    <span className="mt-1 block text-[13px] font-medium leading-6 text-(--text-subdued) max-[640px]:text-xs">
-                      {line.translation}
-                    </span>
+                    <span className="lyrics-translation">{line.translation}</span>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>
         )}
       </div>
 
-      {/* Mobile: the provider pill floats above the nav bar instead of crowding the header. */}
-      <div className="absolute inset-x-0 bottom-[76px] z-20 hidden justify-center px-4 max-[640px]:flex">
+      {/* Mobile: provider chip floats at the bottom edge of the panel */}
+      <div className="absolute inset-x-0 bottom-3 z-20 hidden justify-center px-4 max-[640px]:flex">
         <div className="relative">
           <button
             type="button"
@@ -693,16 +601,16 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
             aria-haspopup="listbox"
             aria-expanded={selectorOpen}
             title="Lyrics provider"
-            className="flex h-9 max-w-[260px] items-center gap-1.5 rounded-full border border-white/10 bg-black/50 px-4 text-xs font-semibold text-(--text-subdued) backdrop-blur-2xl transition-colors hover:bg-white/10 hover:text-(--fg-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80"
+            className="flex h-8 max-w-[240px] items-center gap-1.5 rounded-full bg-white/[.08] px-3.5 text-[11px] font-semibold text-white/65 backdrop-blur-xl transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
             <span className="truncate">{providerLabel}</span>
-            <IconChevronDown className={`h-3.5 w-3.5 transition-transform ${selectorOpen ? "rotate-180" : ""}`} />
+            <IconChevronDown className={`h-3 w-3 transition-transform ${selectorOpen ? "rotate-180" : ""}`} />
           </button>
           {selectorOpen && (
             <ul
               role="listbox"
               aria-label="Lyrics provider"
-              className="absolute bottom-11 left-1/2 z-50 w-60 -translate-x-1/2 overflow-hidden rounded-lg border border-white/10 bg-(--surface-raised) py-1 shadow-[0_16px_40px_rgba(0,0,0,.6)]"
+              className="absolute bottom-10 left-1/2 z-50 w-60 -translate-x-1/2 overflow-hidden rounded-lg border border-white/10 bg-[#181818] py-1 shadow-[0_16px_40px_rgba(0,0,0,.6)]"
             >
               {providerOptions.map((option) => (
                 <li key={option.id}>
@@ -719,13 +627,13 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
                     <span className="mt-1 flex h-3 w-3 shrink-0 items-center justify-center">
                       <span
                         className={`h-2 w-2 rounded-full ${
-                          providerSelection === option.id ? "bg-(--accent)" : "bg-transparent ring-1 ring-(--fg-primary)/40"
+                          providerSelection === option.id ? "bg-(--accent)" : "bg-transparent ring-1 ring-white/40"
                         }`}
                       />
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold text-(--fg-primary)">{option.name}</span>
-                      <span className="block truncate text-xs text-(--text-subdued)">
+                      <span className="block truncate text-sm font-semibold text-white">{option.name}</span>
+                      <span className="block truncate text-xs text-white/55">
                         {!option.available ? "API key required" : option.description}
                       </span>
                     </span>

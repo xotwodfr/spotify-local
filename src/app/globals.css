@@ -341,7 +341,9 @@ html[data-motion="off"] .ambient-blob {
 }
 
 html[data-motion="off"] .lyrics-panel,
-html[data-motion="reduced"] .lyrics-panel {
+html[data-motion="reduced"] .lyrics-panel,
+html[data-motion="off"] .lyrics-popout,
+html[data-motion="reduced"] .lyrics-popout {
   animation: none !important;
 }
 
@@ -380,4 +382,245 @@ html[data-motion="reduced"] .lyrics-line {
 /* OverlayScrollbars-scoped scroll container */
 .os-scrollbar-vertical .os-scrollbar-track {
   background: transparent;
+}
+/* ===========================================================================
+   Lyrics pop-out panel: rises from the Now Playing bar, stays anchored above
+   it. Spicy-Lyrics-inspired: dark neutral base, artwork-tinted ambient fields,
+   gradient-clipped typography with per-word motion.
+   =========================================================================== */
+
+.lyrics-popout {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--npbar-height, 82px);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  height: clamp(400px, 55vh, 720px);
+  overflow: hidden;
+  border-radius: 14px 14px 0 0;
+  background:
+    linear-gradient(180deg, #101010 0%, #070707 100%);
+  box-shadow:
+    0 -18px 50px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  transform-origin: bottom center;
+  animation: lyrics-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes lyrics-rise {
+  from {
+    opacity: 0;
+    transform: translateY(48px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* The Now Playing bar hides below 640px (mobile mini-bar at 58px). */
+@media (max-width: 640px) {
+  .lyrics-popout {
+    bottom: var(--npbar-height-mobile, 58px);
+    height: min(68vh, calc(100dvh - 58px - 62px));
+    border-radius: 12px 12px 0 0;
+  }
+}
+
+/* --- Ambient background: two slow color fields tinted by the artwork palette --- */
+
+.lyrics-dynamic-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.lyrics-dynamic-blob {
+  position: absolute;
+  width: 75%;
+  height: 90%;
+  filter: blur(90px);
+  will-change: transform;
+  transition: background 1.2s ease;
+}
+
+.lyrics-dynamic-blob-a {
+  left: -18%;
+  top: -30%;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--accent-glow) 55%, transparent);
+  opacity: 0.5;
+  animation: lyrics-drift-a 34s ease-in-out infinite alternate;
+}
+
+.lyrics-dynamic-blob-b {
+  right: -20%;
+  bottom: -35%;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--glow-b) 42%, transparent);
+  opacity: 0.4;
+  animation: lyrics-drift-b 41s ease-in-out infinite alternate;
+}
+
+@keyframes lyrics-drift-a {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(9%, 7%, 0) scale(1.12); }
+}
+
+@keyframes lyrics-drift-b {
+  from { transform: translate3d(0, 0, 0) scale(1.05); }
+  to { transform: translate3d(-8%, -6%, 0) scale(0.94); }
+}
+
+.lyrics-dynamic-scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 0%, transparent 30%, rgba(8, 8, 8, 0.55) 100%),
+    linear-gradient(180deg, rgba(8, 8, 8, 0.5) 0%, rgba(8, 8, 8, 0.24) 35%, rgba(8, 8, 8, 0.66) 100%);
+}
+
+/* --- Typography sizes (setting-driven via wrapper class) --- */
+
+.lyrics-text-sm { font-size: clamp(1.25rem, 1rem + 1vw, 1.6rem); }
+.lyrics-text-md { font-size: clamp(1.55rem, 1.2rem + 1.5vw, 2.1rem); }
+.lyrics-text-lg { font-size: clamp(1.9rem, 1.4rem + 2vw, 2.6rem); }
+.lyrics-text-xl { font-size: clamp(2.2rem, 1.6rem + 2.6vw, 3.1rem); }
+
+/* --- Lines: gradient-clipped text, state classes set emphasis --- */
+
+.lyrics-line {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.28em;
+  row-gap: 0.05em;
+  padding: 0.18em 0;
+  cursor: pointer;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.18;
+  transition: opacity 0.45s ease, filter 0.45s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: left center;
+  outline: none;
+}
+
+.lyrics-line.is-active { opacity: 1; filter: blur(0); transform: scale(1); }
+.lyrics-line.is-next { opacity: 0.58; filter: blur(0.4px); transform: scale(0.976); }
+.lyrics-line.is-far { opacity: 0.34; filter: blur(0.8px); transform: scale(0.956); }
+.lyrics-line.is-distant { opacity: 0.18; filter: blur(1.2px); transform: scale(0.94); }
+.lyrics-line:hover { opacity: 0.85; }
+.lyrics-line:focus-visible { opacity: 1; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35); border-radius: 8px; }
+
+/* Spicy-style soft white gradient: active lines sweep to full white as words
+   are sung; inactive lines sit at a dim gradient. Applied via background-clip
+   so the sweep position can animate per word with a custom property. */
+
+.lyrics-line,
+.lyrics-word,
+.lyrics-plain {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  -webkit-background-clip: text;
+  background-image: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.92) 0%,
+    rgba(255, 255, 255, 0.92) var(--wpos, 120%),
+    rgba(255, 255, 255, 0.38) calc(var(--wpos, 120%) + 22%),
+    rgba(255, 255, 255, 0.38) 130%
+  );
+}
+
+.lyrics-line .lyrics-plain {
+  --wpos: 120%;
+}
+
+/* States adjust base alpha instead of color so the gradient stays coherent. */
+.lyrics-style-wordsync .lyrics-line.is-active .lyrics-word,
+.lyrics-style-standard .lyrics-line.is-active .lyrics-word { --alpha: 0.98; --alpha-end: 0.32; }
+.lyrics-line.is-active .lyrics-plain { --wpos: 120%; }
+
+.lyrics-line.is-next .lyrics-word,
+.lyrics-line.is-next .lyrics-plain { opacity: 0.62; }
+.lyrics-line.is-far .lyrics-word,
+.lyrics-line.is-far .lyrics-plain { opacity: 0.38; }
+.lyrics-line.is-distant .lyrics-word,
+.lyrics-line.is-distant .lyrics-plain { opacity: 0.22; }
+
+/* Plain (non-word) lines in the active state read fully bright. */
+.lyrics-line.is-active .lyrics-plain {
+  background-image: linear-gradient(100deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 100%);
+}
+
+/* --- Words: individual motion units (scale breathes as sung) --- */
+
+.lyrics-word {
+  display: inline-block;
+  will-change: transform;
+  transform-origin: center bottom;
+  transition: transform 0.1s linear;
+  cursor: pointer;
+}
+
+html[data-motion="reduced"] .lyrics-word,
+html[data-motion="off"] .lyrics-word {
+  transform: none !important;
+  transition: none !important;
+}
+
+/* Standard style: karaoke fill sweep (legacy mechanism, kept for Standard). */
+.lyrics-style-standard .lyrics-word {
+  background-image: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.95) calc(var(--word-progress, 0) * 130% - 15%),
+    rgba(255, 255, 255, 0.32) calc(var(--word-progress, 0) * 130% + 8%),
+    rgba(255, 255, 255, 0.32) 100%
+  );
+}
+
+/* Minimal style: no gradient sweep, just bright active vs dim inactive. */
+.lyrics-style-minimal .lyrics-line,
+.lyrics-style-minimal .lyrics-word,
+.lyrics-style-minimal .lyrics-plain {
+  background-image: none;
+  color: rgba(255, 255, 255, 0.92);
+  -webkit-text-fill-color: currentColor;
+}
+.lyrics-style-minimal .lyrics-line.is-next { color: rgba(255, 255, 255, 0.5); }
+.lyrics-style-minimal .lyrics-line.is-far { color: rgba(255, 255, 255, 0.3); }
+.lyrics-style-minimal .lyrics-line.is-distant { color: rgba(255, 255, 255, 0.16); }
+.lyrics-style-minimal .lyrics-word { transform: none !important; }
+
+.lyrics-translation {
+  width: 100%;
+  flex-basis: 100%;
+  font-size: 0.42em;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.4;
+  opacity: 0.55;
+}
+
+/* Full-bleed lyrics page kept for reference layouts (album/artist pages). */
+.lyrics-scroll {
+  mask-image: linear-gradient(180deg, transparent 0, black 72px, black calc(100% - 88px), transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, black 72px, black calc(100% - 88px), transparent 100%);
+  /* Padding is percentage-of-width inside a scroller (breaks scroll height);
+     force the intended viewport-relative focal spacing. */
+  padding-top: 16vh !important;
+  padding-bottom: 24vh !important;
+}
+
+@media (max-width: 640px) {
+  .lyrics-scroll {
+    padding-top: 14vh !important;
+    padding-bottom: 22vh !important;
+  }
 }

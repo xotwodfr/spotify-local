@@ -16,8 +16,10 @@ import {
   type AnimationMode,
   type BackgroundIntensity,
   type LyricsFontSize,
+  type LyricsStyle,
   type PlaybackQuality,
   type ThemeMode,
+  type WordAnimation,
 } from "@/lib/settings";
 
 const inputClass =
@@ -339,11 +341,23 @@ export function SettingsForm() {
             />
           </Row>
 
-          <Row label="Word highlighting" description="Karaoke-style fill animation on the active line (needs word-synced music).">
-            <Toggle
-              checked={settings.wordHighlighting}
-              onChange={(next) => update({ wordHighlighting: next })}
-              label="Word highlighting"
+          <Row label="Lyrics style" description="Word Sync animates each word as it is sung; Standard uses a filled highlight; Minimal shows plain text.">
+            <Segmented<LyricsStyle>
+              value={settings.lyricsStyle}
+              onChange={(next) => update({ lyricsStyle: next })}
+              options={["wordsync", "standard", "minimal"] as const}
+              getLabel={(option) =>
+                option === "wordsync" ? "Word Sync" : option[0].toUpperCase() + option.slice(1)
+              }
+            />
+          </Row>
+
+          <Row label="Word animation" description="How strongly words grow while they are being sung (Word Sync style only).">
+            <Segmented<WordAnimation>
+              value={settings.wordAnimation}
+              onChange={(next) => update({ wordAnimation: next })}
+              options={["off", "subtle", "normal", "strong"] as const}
+              getLabel={(option) => option[0].toUpperCase() + option.slice(1)}
             />
           </Row>
 
