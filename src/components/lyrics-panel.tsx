@@ -3,22 +3,27 @@
 import { IconChevronDown } from "@/components/icons";
 import { useLyrics } from "@/components/lyrics-surface";
 import { usePlayer } from "@/components/player-provider";
+import { usePresence } from "@/hooks/use-presence";
 import { useSettings } from "@/lib/settings";
 
 /**
  * Centered, width-constrained lyrics card that rises above the Now Playing
  * bar. The shared `useLyrics` hook supplies data, engine, and content; this
- * shell only adds the centered chrome.
+ * shell only adds the centered chrome. Stays mounted through its exit
+ * transition (presence-driven), then renders null.
  */
-export function LyricsPanel({ onClose }: { onClose: () => void }) {
+export function LyricsPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { settings } = useSettings();
   const player = usePlayer();
   const lyrics = useLyrics();
   const song = player.current;
+  const presence = usePresence(open, 220);
+
+  if (presence === "closed") return null;
 
   return (
     <div className="lyrics-overlay">
-      <section aria-label="Lyrics" className="lyrics-popout">
+      <section aria-label="Lyrics" className="lyrics-popout" data-state={presence}>
         {/* Ambient artwork background: soft color fields from the app palette */}
         {settings.backgroundEffects && (
           <div aria-hidden className="lyrics-dynamic-bg">

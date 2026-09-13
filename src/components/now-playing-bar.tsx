@@ -138,8 +138,9 @@ export function NowPlayingBar() {
           </div>
         </div>
       </div>
-      {lyricsOpen && <LyricsPanel onClose={() => setLyricsOpen(false)} />}
-      {floatingOpen && <FloatingLyrics onClose={() => setFloatingOpen(false)} />}
+      {/* Mounted through the exit transition; each shell renders null when closed. */}
+      <LyricsPanel open={lyricsOpen} onClose={() => setLyricsOpen(false)} />
+      <FloatingLyrics open={floatingOpen} onClose={() => setFloatingOpen(false)} />
       {queueOpen && <QueueDrawer onClose={() => setQueueOpen(false)} />}
     </>
   );

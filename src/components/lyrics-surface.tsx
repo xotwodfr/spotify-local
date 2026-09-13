@@ -121,9 +121,36 @@ function useLyricsEngine(
   const { settings } = useSettings();
 
   useEffect(() => {
-    const container = scrollRef.current;
-    if (!container || !enabled || !lines.length) return;
+    if (!enabled || !lines.length) return;
 
+    // The scroll container may attach after this effect runs (the surface's
+    // content node is rendered by the parent shell), so wait for it via rAF
+    // instead of failing silently for the lifetime of the panel.
+    let attachRaf = 0;
+    let container: HTMLDivElement | null = scrollRef.current;
+    const engine = { started: false, stop: () => {} };
+
+    const startEngine = (el: HTMLDivElement) => {
+      if (engine.started) return;
+      engine.started = true;
+      engine.stop = runEngine(el);
+    };
+
+    const tryAttach = () => {
+      container = scrollRef.current;
+      if (container) startEngine(container);
+      else attachRaf = requestAnimationFrame(tryAttach);
+    };
+    tryAttach();
+
+    return () => {
+      cancelAnimationFrame(attachRaf);
+      engine.stop();
+    };
+  }, [scrollRef, lineElsRef, lines, enabled, settings.autoScrollLyrics, settings.centerActiveLyric, settings.lyricsStyle, settings.wordAnimation, settings.wordSyncedLyrics, settings.animations]);
+
+  /** The full animation engine, bound to its scroll container. */
+  function runEngine(container: HTMLDivElement) {
     const reducedMotion =
       settings.animations === "reduced" ||
       settings.animations === "off" ||
@@ -142,10 +169,38 @@ function useLyricsEngine(
     let lastActive = -2;
     let lastTime = -1;
     let activeSpans: HTMLElement[] | null = null;
+    let activeLineEl: HTMLElement | null = null;
     let raf = 0;
     let last = performance.now();
     let userScrolling = false;
     let scrollTimer: ReturnType<typeof setTimeout> | null = null;
+    // Idle management: the loop stops entirely when nothing changes visually
+    // (paused + scroll settled) and restarts from media events.
+    let running = true;
+    let idle = false;
+
+    const wake = () => {
+      if (!running || !idle) return;
+      idle = false;
+      last = performance.now();
+      raf = requestAnimationFrame(frame);
+    };
+    const sleep = () => {
+      if (idle) return;
+      idle = true;
+      cancelAnimationFrame(raf);
+    };
+
+    // Media events (via the clock's single subscription) restart the loop
+    // after sleep; the clock itself is read inside the loop, so no state is
+    // captured at wake time. The subscription also covers active-element
+    // switches (crossfade), which re-emit from setElement.
+    const unsubscribeClock = playbackClock.subscribe(wake);
+    const onVisibility = () => {
+      if (document.hidden) sleep();
+      else wake();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
 
     const beginUserScroll = () => {
       userScrolling = true;
@@ -166,12 +221,19 @@ function useLyricsEngine(
       return { top: line.offsetTop, height: line.offsetHeight };
     };
 
-    const resizeObserver = reducedMotion ? null : new ResizeObserver(() => {
+    // Cached container metrics: clientHeight/scrollHeight are layout reads,
+    // so they are refreshed only on resize — never per frame.
+    let containerHeight = container.clientHeight;
+    const resizeObserver = new ResizeObserver(() => {
       measuredFor = -2;
+      containerHeight = container.clientHeight;
+      wake();
     });
-    resizeObserver?.observe(container);
+    resizeObserver.observe(container);
     const onResize = () => {
       measuredFor = -2;
+      containerHeight = container.clientHeight;
+      wake();
     };
     window.addEventListener("resize", onResize);
     if (typeof document.fonts?.ready?.then === "function") {
@@ -184,6 +246,22 @@ function useLyricsEngine(
       return Array.from(line.querySelectorAll<HTMLElement>("[data-word]"));
     };
 
+    // Incremental active-line lookup: advance from the previous index during
+    // normal playback (O(1)); binary-search only after a seek (O(log n)).
+    let activeCursor = 0;
+    const findActiveIncremental = (time: number): number => {
+      let index = Math.min(Math.max(activeCursor, 0), lines.length - 1);
+      if (index >= 0 && lines[index] && time >= lines[index].time) {
+        while (index + 1 < lines.length && time >= lines[index + 1].time) index += 1;
+        activeCursor = index;
+        return index;
+      }
+      // Time moved before the cached line: fall back to binary search.
+      const found = findActiveIndex(lines, time);
+      activeCursor = Math.max(found, 0);
+      return found;
+    };
+
     const frame = () => {
       const now = performance.now();
       const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
@@ -193,8 +271,9 @@ function useLyricsEngine(
       // position — seeks, pauses, and track changes are reflected instantly
       // with no anchor/extrapolation state to invalidate.
       const time = playbackClock.getTime();
+      const playing = !playbackClock.getElement()?.paused;
 
-      const active = findActiveIndex(lines, time);
+      const active = findActiveIncremental(time);
 
       // A large jump between frames means the user sought — snap the scroll.
       if (lastTime >= 0 && Math.abs(time - lastTime) > SEEK_JUMP_SECONDS) {
@@ -215,9 +294,14 @@ function useLyricsEngine(
             el.className = `lyrics-line ${nextClass}`;
           }
         }
-        // Reset motion on the outgoing line's words in one pass.
+        // Reset motion on the outgoing line's words in one pass. The write
+        // cache must clear too, or a re-activated line would skip its first
+        // write (dataset value would equal the stale cached one).
         if (activeSpans) {
           for (const span of activeSpans) {
+            span.dataset.scale = "";
+            span.dataset.wpos = "";
+            span.dataset.progress = "";
             span.style.transform = "";
             span.style.setProperty("--wpos", "-30%");
           }
@@ -233,12 +317,17 @@ function useLyricsEngine(
           geometry = measured;
           measuredFor = active;
         }
+        // Promote only the animating line's words to compositor layers.
+        activeLineEl?.classList.remove("lyrics-animating");
+        activeLineEl = active >= 0 ? lineElsRef.current?.get(active) ?? null : null;
+        activeLineEl?.classList.add("lyrics-animating");
       }
 
       // --- Follow scroll: continuous spring toward the active line ---
+      let scrollSettled = true;
       if (autoScrollEnabled) {
-        const maxScroll = container.scrollHeight - container.clientHeight;
-        const rawTargetY = geometry ? geometry.top + geometry.height / 2 - container.clientHeight * focusRatio : 0;
+        const maxScroll = container.scrollHeight - containerHeight;
+        const rawTargetY = geometry ? geometry.top + geometry.height / 2 - containerHeight * focusRatio : 0;
         const targetY = Math.min(Math.max(rawTargetY, 0), maxScroll);
 
         if (!spring.init || reducedMotion) {
@@ -254,12 +343,15 @@ function useLyricsEngine(
           } else {
             spring.y += (targetY - spring.y) * (1 - Math.exp(-dt * FOLLOW_STIFFNESS));
             if (Math.abs(targetY - spring.y) < 0.05) spring.y = targetY;
-            if (container.scrollTop !== spring.y) container.scrollTop = spring.y;
+            if (Math.abs(container.scrollTop - spring.y) >= 0.5) {
+              container.scrollTop = spring.y;
+              scrollSettled = false;
+            }
           }
         }
       }
 
-      // --- Word-level motion: scale while sung + gradient sweep position ---
+      // --- Word-level motion: only the words that can visually change ---
       if (active >= 0) {
         const line = lines[active];
         const words = line?.words;
@@ -274,32 +366,56 @@ function useLyricsEngine(
             if (!word || !span) continue;
             if (useWordMotion) {
               const envelope = wordEnvelope(time, word.start, word.end);
-              span.style.transform = `scale(${(1 + wordScale * envelope).toFixed(4)})`;
-              // Gradient sweep: -30% (not started) → 115% (fully sung).
+              const scale = 1 + wordScale * envelope;
+              // Write-diff: touch the DOM only when the rounded value moves.
+              const nextText = scale.toFixed(3);
+              if (span.dataset.scale !== nextText) {
+                span.dataset.scale = nextText;
+                span.style.transform = `scale(${nextText})`;
+              }
               const progress = time >= word.end ? 1 : time <= word.start ? 0 : (time - word.start) / Math.max(0.001, word.end - word.start);
-              span.style.setProperty("--wpos", `${(-30 + progress * 145).toFixed(2)}%`);
+              const posText = (-30 + progress * 145).toFixed(1);
+              if (span.dataset.wpos !== posText) {
+                span.dataset.wpos = posText;
+                span.style.setProperty("--wpos", `${posText}%`);
+              }
             } else if (useWordFill) {
               const progress = time >= word.end ? 1 : time <= word.start ? 0 : (time - word.start) / Math.max(0.001, word.end - word.start);
-              span.style.setProperty("--word-progress", progress.toFixed(3));
+              const progText = progress.toFixed(2);
+              if (span.dataset.progress !== progText) {
+                span.dataset.progress = progText;
+                span.style.setProperty("--word-progress", progText);
+              }
             }
           }
         }
       }
 
+      // Idle management: while paused with the scroll settled, stop the loop
+      // entirely; play/seek/element-switch events wake it via the clock
+      // subscription. A paused frame is visually static by definition.
+      if (!playing && scrollSettled) {
+        sleep();
+        return;
+      }
       raf = requestAnimationFrame(frame);
     };
 
     raf = requestAnimationFrame(frame);
     return () => {
+      running = false;
       cancelAnimationFrame(raf);
-      resizeObserver?.disconnect();
+      resizeObserver.disconnect();
       window.removeEventListener("resize", onResize);
+      document.removeEventListener("visibilitychange", onVisibility);
+      unsubscribeClock();
       container.removeEventListener("wheel", beginUserScroll);
       container.removeEventListener("touchstart", beginUserScroll);
       container.removeEventListener("pointerdown", beginUserScroll);
+      activeLineEl?.classList.remove("lyrics-animating");
       if (scrollTimer) clearTimeout(scrollTimer);
     };
-  }, [scrollRef, lineElsRef, lines, enabled, settings.autoScrollLyrics, settings.centerActiveLyric, settings.lyricsStyle, settings.wordAnimation, settings.wordSyncedLyrics, settings.animations]);
+  }
 }
 
 /**

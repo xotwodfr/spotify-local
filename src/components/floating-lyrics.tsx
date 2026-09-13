@@ -10,6 +10,7 @@ import {
 import { IconClose } from "@/components/icons";
 import { useLyrics } from "@/components/lyrics-surface";
 import { usePlayer } from "@/components/player-provider";
+import { usePresence } from "@/hooks/use-presence";
 import { useSettings } from "@/lib/settings";
 
 const POSITION_KEY = "spotify-local/floating-lyrics";
@@ -70,11 +71,12 @@ function centered(): WindowRect {
  * to React state (and storage) only on pointer-up, so the underlying app
  * never re-renders while the user is interacting.
  */
-export function FloatingLyrics({ onClose }: { onClose: () => void }) {
+export function FloatingLyrics({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { settings } = useSettings();
   const player = usePlayer();
   const lyrics = useLyrics();
   const song = player.current;
+  const presence = usePresence(open, 200);
 
   // Client-only component (opened by user interaction), so reading storage in
   // the initializer is SSR-safe and needs no post-mount hydration pass.
@@ -150,7 +152,8 @@ export function FloatingLyrics({ onClose }: { onClose: () => void }) {
     window.addEventListener("pointerup", onUp);
   }, []);
 
-  // Escape closes; the header is the drag handle.
+  // Escape closes; the header is the drag handle. onClose is deferred until
+  // the exit transition finishes (presence-driven unmount happens in the bar).
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -159,16 +162,19 @@ export function FloatingLyrics({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const style = useMemo<React.CSSProperties>(
-    () => ({ left: rect.x, top: rect.y, width: rect.width, height: rect.height }),
-    [rect],
+  const style = useMemo<React.CSSProperties | undefined>(
+    () => (presence === "closed" ? undefined : { left: rect.x, top: rect.y, width: rect.width, height: rect.height }),
+    [presence, rect],
   );
+
+  if (presence === "closed") return null;
 
   return (
     <div
       className="floating-lyrics"
       role="dialog"
       aria-label="Floating lyrics"
+      data-state={presence}
       style={style}
     >
       {settings.backgroundEffects && (
