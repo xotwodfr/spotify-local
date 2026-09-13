@@ -1,3 +1,4 @@
+import { getArtVersion, getSyncSetting } from "@/lib/settings";
 import type { SubsonicResponse } from "@/lib/navidrome/types";
 
 export class NavidromeError extends Error {
@@ -24,7 +25,33 @@ export function subsonicUrl(endpoint: string, params: SubsonicParams = {}): stri
 
 export function coverArtUrl(coverArt?: string | null, size = 600): string | null {
   if (!coverArt) return null;
-  return subsonicUrl("getCoverArt", { id: coverArt, size });
+  // A per-clear version busts the HTTP/immutable artwork cache on demand.
+  const version = getArtVersion();
+  const params: SubsonicParams = { id: coverArt, size };
+  if (version !== "0") params.ac = version;
+  return subsonicUrl("getCoverArt", params);
+}
+
+export function streamUrl(songId: string): string {
+  const quality = getSyncSetting("playbackQuality");
+  const maxBitRate = qualityToBitRate(quality);
+  return subsonicUrl("stream", {
+    id: songId,
+    ...(maxBitRate > 0 ? { maxBitRate } : {}),
+  });
+}
+
+function qualityToBitRate(quality: string): number {
+  switch (quality) {
+    case "high":
+      return 320;
+    case "medium":
+      return 192;
+    case "low":
+      return 128;
+    default:
+      return 0;
+  }
 }
 
 export async function subsonicFetch<T>(

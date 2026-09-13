@@ -56,13 +56,13 @@ export function SearchView() {
 
   return (
     <PageShell>
-      <section className="px-10 pb-8 pt-4">
-        <h1 className="mb-6 text-3xl font-extrabold text-white">Search</h1>
+      <section className="px-10 pb-10 pt-6 max-[640px]:px-6 max-[640px]:pb-24 max-[640px]:pt-4">
+        <h1 className="mb-6 text-3xl font-extrabold tracking-tight text-(--fg-primary) max-[640px]:text-2xl">Search</h1>
 
         {!connected && <ConnectPrompt />}
 
         {connected && !term && (
-          <p className="text-base text-[#b3b3b3]">
+          <p className="text-base text-(--text-subdued)">
             Search your Navidrome library for artists, albums and songs.
           </p>
         )}
@@ -80,7 +80,7 @@ export function SearchView() {
           <>
             {results.songs.length > 0 && (
               <section className="mb-8">
-                <h2 className="mb-3 text-2xl font-bold text-white">Songs</h2>
+                <h2 className="mb-3 text-2xl font-bold text-(--fg-primary)">Songs</h2>
                 <div className="flex flex-col">
                   {results.songs.map((song, index) => (
                     <TrackRow
@@ -99,7 +99,7 @@ export function SearchView() {
 
             {results.artists.length > 0 && (
               <section className="mb-8">
-                <h2 className="mb-3 text-2xl font-bold text-white">Artists</h2>
+                <h2 className="mb-3 text-2xl font-bold text-(--fg-primary)">Artists</h2>
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(196px,1fr))] gap-2">
                   {results.artists.map((artist) => {
                     const item: CardItem = {
@@ -118,7 +118,7 @@ export function SearchView() {
 
             {results.albums.length > 0 && (
               <section className="mb-8">
-                <h2 className="mb-3 text-2xl font-bold text-white">Albums</h2>
+                <h2 className="mb-3 text-2xl font-bold text-(--fg-primary)">Albums</h2>
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(196px,1fr))] gap-2">
                   {results.albums.map((album) => {
                     const item: CardItem = {
@@ -138,7 +138,7 @@ export function SearchView() {
             {results.songs.length === 0 &&
               results.artists.length === 0 &&
               results.albums.length === 0 && (
-                <p className="text-base text-[#b3b3b3]">
+                <p className="text-base text-(--text-subdued)">
                   No results for &ldquo;{term}&rdquo;.
                 </p>
               )}

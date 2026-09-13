@@ -1,9 +1,9 @@
-import { subsonicFetch, subsonicUrl } from "@/lib/navidrome/client";
+import { subsonicFetch } from "@/lib/navidrome/client";
 import type { NPlayQueue } from "@/lib/navidrome/types";
 
-export function streamUrl(songId: string): string {
-  return subsonicUrl("stream", { id: songId });
-}
+// Quality-aware stream URLs live in client.ts (they honor the playback
+// quality setting); re-expose here so player code keeps its import path.
+export { streamUrl } from "@/lib/navidrome/client";
 
 export async function getPlayQueue(): Promise<NPlayQueue | null> {
   const body = await subsonicFetch<{ playQueue?: NPlayQueue }>("getPlayQueue");

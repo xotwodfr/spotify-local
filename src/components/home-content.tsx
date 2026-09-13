@@ -147,7 +147,7 @@ export function HomeContent() {
       )}
       {state === "ready" && !connected && <ConnectPrompt />}
       {state === "ready" && connected && (
-        <section className="px-10 pb-8 pt-1">
+        <section className="px-10 pb-10 pt-3 max-[640px]:px-6 max-[640px]:pb-24 max-[640px]:pt-2">
           <h1 className="sr-only">Home</h1>
           {rails.map((rail) => (
             <RailSection key={rail.id} rail={rail} />

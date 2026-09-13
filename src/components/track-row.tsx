@@ -27,7 +27,7 @@ export function TrackRow({
   return (
     <div
       className={cn(
-        "group grid h-14 items-center gap-4 rounded-md px-3 text-[#b3b3b3] hover:bg-[#1f1f1f]",
+        "group grid h-14 items-center gap-4 rounded-md px-3 text-(--text-subdued) transition-colors hover:bg-(--surface-raised) focus-within:bg-(--surface-raised)",
         showAlbum
           ? "grid-cols-[24px_minmax(0,4fr)_minmax(0,3fr)_64px_32px]"
           : "grid-cols-[24px_minmax(0,1fr)_64px_32px]",
@@ -39,7 +39,7 @@ export function TrackRow({
             type="button"
             onClick={onPlay}
             aria-label={isPlaying ? `Pause ${song.title}` : `Play ${song.title}`}
-            className="text-[#1ed760]"
+            className="rounded-sm text-(--accent) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80"
           >
             {isPlaying ? (
               <IconPause className="h-4 w-4 fill-current" />
@@ -56,20 +56,20 @@ export function TrackRow({
               type="button"
               onClick={onPlay}
               aria-label={`Play ${song.title}`}
-              className="hidden group-hover:block"
+              className="hidden rounded-sm group-hover:block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80"
             >
-              <IconPlay className="h-4 w-4 fill-white" />
+              <IconPlay className="h-4 w-4 fill-[#ffffff]" />
             </button>
           </>
         )}
       </div>
 
       <div className="min-w-0">
-        <div className={cn("truncate text-base text-white", isCurrent && "text-[#1ed760]")}>
+        <div className={cn("truncate text-sm text-(--fg-primary)", isCurrent && "text-(--accent)")}>
           {song.title}
         </div>
         {song.artist && (
-          <div className="truncate text-sm text-[#b3b3b3]">{song.artist}</div>
+          <div className="truncate text-xs text-(--text-subdued)">{song.artist}</div>
         )}
       </div>
 
@@ -83,7 +83,7 @@ export function TrackRow({
             type="button"
             onClick={onAdd}
             aria-label={`Add ${song.title} to queue`}
-            className="hidden text-[#b3b3b3] transition hover:text-white group-hover:block"
+            className="hidden rounded-sm text-(--text-subdued) transition-colors hover:text-(--fg-primary) group-hover:block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80"
           >
             <IconCreate className="h-4 w-4 fill-current" />
           </button>

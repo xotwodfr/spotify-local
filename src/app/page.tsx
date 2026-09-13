@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { HomeContent } from "@/components/home-content";
 
 export const metadata: Metadata = {
-  title: "Home - Spotify",
+  title: "Home",
   description: "Listen to the songs you love anywhere.",
 };
 

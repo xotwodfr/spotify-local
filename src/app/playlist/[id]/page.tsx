@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { PlaylistView } from "@/components/playlist-view";
 
 export const metadata: Metadata = {
-  title: "Playlist - Spotify",
+  title: "Playlist",
 };
 
 export default async function PlaylistPage({

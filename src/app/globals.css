@@ -4,7 +4,168 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ---------------------------------------------------------------------------
+   Dynamic theme tokens.
+   These are registered as <color> so browsers interpolate them smoothly when
+   the palette changes between tracks (no JS tweening, no re-renders).
+   The `@theme inline` aliases let existing utilities like `text-white`,
+   `bg-black` and the ens-* set flow through the same variables.
+--------------------------------------------------------------------------- */
+@property --accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1ed760;
+}
+@property --accent-hover {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1fdf6b;
+}
+@property --accent-deep {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #0e7a37;
+}
+@property --frame {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #000000;
+}
+@property --surface {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #121212;
+}
+@property --surface-hover {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1f1f1f;
+}
+@property --surface-raised {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #282828;
+}
+@property --panel {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #181818;
+}
+@property --border-color {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #292929;
+}
+@property --input-color {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #3e3e3e;
+}
+@property --text-subdued {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #b3b3b3;
+}
+@property --fg-primary {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ffffff;
+}
+@property --accent-glow {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(30, 215, 96, 0.5);
+}
+@property --glow-a {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1ed760;
+}
+@property --glow-b {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1f7a4d;
+}
+@property --glow-c {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #2a2a2a;
+}
+@property --ambient-opacity {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0.52;
+}
+
+:root {
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #121212;
+  --card-foreground: #ffffff;
+  --popover: #282828;
+  --popover-foreground: #ffffff;
+  --primary: #1ed760;
+  --primary-foreground: #000000;
+  --secondary: #282828;
+  --secondary-foreground: #ffffff;
+  --muted: #1f1f1f;
+  --muted-foreground: #b3b3b3;
+  --accent: #1ed760;
+  --accent-foreground: #000000;
+  --destructive: #f15e6c;
+  --border: #292929;
+  --input: #3e3e3e;
+  --ring: #ffffff;
+  --radius: 0.5rem;
+
+  /* Smoothly animate palette transitions on track/settings changes. */
+  transition:
+    --accent 1s ease,
+    --accent-hover 1s ease,
+    --accent-deep 1s ease,
+    --frame 1s ease,
+    --surface 1s ease,
+    --surface-hover 1s ease,
+    --surface-raised 1s ease,
+    --panel 1s ease,
+    --border-color 1s ease,
+    --input-color 1s ease,
+    --text-subdued 1s ease,
+    --fg-primary 0.6s ease,
+    --accent-glow 1s ease,
+    --glow-a 1s ease,
+    --glow-b 1s ease,
+    --glow-c 1s ease;
+}
+
 @theme inline {
+  /* Primary text follows --fg-primary (flips in light mode). */
+  --color-white: var(--fg-primary);
+  /* Frame chrome (top bar, sidebar, player) follows the artwork tint. */
+  --color-ens-base: var(--surface);
+  --color-ens-elevated: var(--surface-raised);
+  --color-ens-highlight: var(--surface-hover);
+  --color-ens-subdued: var(--text-subdued);
+  --color-ens-submissive: #7a7a7a;
+  --color-ens-positive: var(--accent);
+  --color-ens-announcement: var(--accent);
+  --color-ens-critical: #f15e6c;
+  --color-ens-bright-accent: var(--accent);
+  --color-ens-selected-row: var(--surface-hover);
+  --color-ens-button-hover: var(--surface-raised);
+  --color-ens-card-hover: var(--surface-hover);
+  --color-ens-track-list-hover: var(--surface-hover);
+  --color-ens-bg-elevated-base: var(--surface);
+  --color-ens-bg-elevated-highlight: var(--surface-hover);
+  --color-ens-bg-tinted-base: var(--surface-hover);
+  --color-ens-bg-tinted-highlight: var(--surface-raised);
+  --color-ens-essential-bright-accent: var(--accent);
+  --color-ens-essential-normal: var(--text-subdued);
+  --color-ens-text-base: var(--fg-primary);
+  --color-ens-text-subdued: var(--text-subdued);
+  --color-ens-text-bright-accent: var(--accent);
+  --color-ens-text-positive: var(--accent);
+  --color-ens-replacement: var(--frame);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-border: var(--border);
@@ -23,48 +184,6 @@
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-destructive: var(--destructive);
-  --color-ens: #000000;
-  --color-ens-base: #121212;
-  --color-ens-elevated: #242424;
-  --color-ens-highlight: #1a1a1a;
-  --color-ens-subdued: #b3b3b3;
-  --color-ens-submissive: #7a7a7a;
-  --color-ens-positive: #1ed760;
-  --color-ens-announcement: #1ed760;
-  --color-ens-critical: #f15e6c;
-  --color-ens-info: #3d91f4;
-  --color-ens-warning: #ffa42b;
-  --color-ens-assisted: #a7c7e7;
-  --color-ens-decorative: #037aa6;
-  --color-ens-bright-accent: #1ed760;
-  --color-ens-selected-row: #4f4f4f;
-  --color-ens-button-hover: #3e3e3e;
-  --color-ens-card-hover: #232323;
-  --color-ens-search-bar: #242424;
-  --color-ens-search-bar-hover: #2a2a2a;
-  --color-ens-track-list-hover: #2a2a2a;
-  --color-ens-bg-elevated-base: #121212;
-  --color-ens-bg-elevated-highlight: #1f1f1f;
-  --color-ens-bg-elevated-press: #000000;
-  --color-ens-bg-tinted-disabled: #7f7f7f;
-  --color-ens-bg-tinted-base: #1f1f1f;
-  --color-ens-bg-tinted-highlight: #292929;
-  --color-ens-bg-tinted-press: #353535;
-  --color-ens-essential-bright-accent: #1ed760;
-  --color-ens-essential-normal: #b3b3b3;
-  --color-ens-text-base: #ffffff;
-  --color-ens-text-subdued: #b3b3b3;
-  --color-ens-text-bright-accent: #1ed760;
-  --color-ens-text-negative: #f15e6c;
-  --color-ens-text-warning: #ffa42b;
-  --color-ens-text-positive: #1ed760;
-  --color-ens-text-announcement: #1ed760;
-  --color-ens-text-info: #3d91f4;
-  --color-ens-text-assisted: #ffffff;
-  --color-ens-text-decorative: #037aa6;
-  --color-ens-image-placeholder: #037aa6;
-  --color-ens-replacement: #121212;
-  --color-ens-empty-state: #b3b3b3;
   --font-sans: var(--font-spotify-mix-ui), "SpotifyMixUI", "CircularSp-Arab",
     "CircularSp-Hebr", "CircularSp-Cyrl", "CircularSp-Grek",
     "CircularSp-Deva", "Helvetica Neue", helvetica, arial, sans-serif;
@@ -75,28 +194,6 @@
   --radius-ens-8px: 8px;
   --radius-ens-16px: 16px;
   --radius-ens-full: 9999px;
-}
-
-:root {
-  --background: #000000;
-  --foreground: #ffffff;
-  --card: #121212;
-  --card-foreground: #ffffff;
-  --popover: #121212;
-  --popover-foreground: #ffffff;
-  --primary: #1ed760;
-  --primary-foreground: #000000;
-  --secondary: #1f1f1f;
-  --secondary-foreground: #ffffff;
-  --muted: #242424;
-  --muted-foreground: #b3b3b3;
-  --accent: #1f1f1f;
-  --accent-foreground: #ffffff;
-  --destructive: #f15e6c;
-  --border: #292929;
-  --input: #1f1f1f;
-  --ring: #ffffff;
-  --radius: 0.5rem;
 }
 
 @layer base {
@@ -116,6 +213,143 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Ambient background: large blurred artwork-derived gradients drift slowly
+   behind the whole app. Content panels sit above at high opacity so the
+   glow stays atmospheric, never distracting.
+--------------------------------------------------------------------------- */
+.ambient-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: var(--ambient-opacity, 0.52);
+}
+
+.ambient-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  will-change: transform, opacity;
+}
+
+.ambient-blob-a {
+  left: -12%;
+  top: -14%;
+  width: 62vmax;
+  height: 62vmax;
+  background: radial-gradient(circle at 35% 45%, var(--glow-a) 0%, transparent 68%);
+  animation: ambient-drift-a 28s ease-in-out infinite;
+}
+
+.ambient-blob-b {
+  right: -16%;
+  bottom: -20%;
+  width: 60vmax;
+  height: 60vmax;
+  background: radial-gradient(circle at 60% 40%, var(--glow-b) 0%, transparent 66%);
+  animation: ambient-drift-b 36s ease-in-out infinite;
+  opacity: 0.65;
+}
+
+.ambient-blob-c {
+  left: 28%;
+  top: 30%;
+  width: 42vmax;
+  height: 42vmax;
+  background: radial-gradient(circle at 50% 50%, var(--glow-c) 0%, transparent 70%);
+  animation: ambient-drift-c 42s ease-in-out infinite;
+  opacity: 0.4;
+}
+
+@keyframes ambient-drift-a {
+  0%,
+  100% {
+    transform: translate3d(-3%, -2%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(5%, 4%, 0) scale(1.14);
+  }
+}
+
+@keyframes ambient-drift-b {
+  0%,
+  100% {
+    transform: translate3d(2%, 3%, 0) scale(1.06);
+  }
+  50% {
+    transform: translate3d(-5%, -3%, 0) scale(0.96);
+  }
+}
+
+@keyframes ambient-drift-c {
+  0%,
+  100% {
+    transform: translate3d(0%, 0%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(3%, -4%, 0) scale(1.1);
+  }
+}
+
+html[data-motion="reduced"] .ambient-blob,
+html[data-motion="off"] .ambient-blob {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-blob {
+    animation: none !important;
+  }
+}
+
+/* Soft artwork-tinted glow at the top of scrollable content (headers/etc). */
+.ambient-scrim {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 380px;
+  pointer-events: none;
+  background: linear-gradient(
+      var(--accent-glow),
+      transparent 26%,
+      transparent 100%
+    ),
+    linear-gradient(180deg, color-mix(in oklab, var(--accent-glow) 40%, transparent) 0%, transparent 30%, color-mix(in oklab, var(--surface) 82%, transparent) 100%);
+}
+
+/* Word-level karaoke fill: the accent sweeps across each word via --word-progress. */
+.karaoke-word {
+  background: linear-gradient(
+    to right,
+    var(--accent) 0%,
+    var(--accent) calc(var(--word-progress, 0) * 100%),
+    var(--fg-primary) calc(var(--word-progress, 0) * 100%),
+    var(--fg-primary) 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Apple Music-style lyrics panel: frosted backdrop + slide-in */
+.lyrics-panel {
+  will-change: transform, opacity;
+}
+
+html[data-motion="off"] .lyrics-panel,
+html[data-motion="reduced"] .lyrics-panel {
+  animation: none !important;
+}
+
+html[data-motion="off"] .lyrics-line,
+html[data-motion="reduced"] .lyrics-line {
+  transition: none !important;
+}
+
 /* Spotify scrollbar (os-theme-spotify) */
 .os-theme-spotify.os-scrollbar-vertical {
   padding: 4px 0;
@@ -125,9 +359,9 @@
 }
 .os-theme-spotify.os-scrollbar-horizontal.os-scrollbar-handle-interactive,
 .os-theme-spotify.os-scrollbar-vertical.os-scrollbar-handle-interactive {
-  --os-handle-bg: rgb(255 255 255 / 0.1);
-  --os-handle-bg-hover: rgb(255 255 255 / 0.2);
-  --os-handle-bg-active: rgb(255 255 255 / 0.3);
+  --os-handle-bg: rgba(255 255 255 / 0.1);
+  --os-handle-bg-hover: rgba(255 255 255 / 0.2);
+  --os-handle-bg-active: rgba(255 255 255 / 0.3);
   --os-handle-border: 0;
   --os-handle-radius: 4px;
   --os-handle-size: 8px;

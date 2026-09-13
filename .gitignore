@@ -3,4 +3,12 @@ node_modules
 .env*.local
 .playwright-mcp
 *.tsbuildinfo
-*.tsbuildinfo
+
+# Scratch logs and audit output
+.start-*.log
+.start.log
+.dev-*.log
+.dev.log
+.audit*/
+now-playing-desk.png
+settings-dark.png

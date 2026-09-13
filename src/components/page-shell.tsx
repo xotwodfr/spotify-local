@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-import { Footer } from "@/components/footer";
 import { MobileNav } from "@/components/mobile-nav";
 import { NowPlayingBar } from "@/components/now-playing-bar";
 import { Sidebar } from "@/components/sidebar";
@@ -14,7 +13,7 @@ export function PageShell({
   children: ReactNode;
 }) {
   return (
-    <div className="grid h-full w-full grid-cols-[320px_1fr_32px] grid-rows-[64px_1fr_82px] gap-2 bg-black p-2 text-white max-lg:grid-cols-1">
+    <div className="grid h-full w-full grid-cols-[320px_minmax(0,1fr)] grid-rows-[64px_minmax(0,1fr)_82px] gap-2 bg-[color-mix(in_oklab,var(--frame)_88%,transparent)] p-2 text-(--fg-primary) max-lg:grid-cols-1 max-[640px]:grid-rows-[64px_minmax(0,1fr)_0px] max-[640px]:gap-0 max-[640px]:p-0">
       <div className="col-span-full">
         <TopBar />
       </div>
@@ -23,23 +22,26 @@ export function PageShell({
         <Sidebar />
       </div>
 
-      <main className="relative overflow-hidden rounded-lg bg-[#121212]">
-        <div className="relative h-full overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <main className="relative min-w-0 overflow-hidden rounded-lg bg-[color-mix(in_oklab,var(--surface)_94%,transparent)] [backdrop-filter:blur(0)] max-[640px]:rounded-none">
+        <div className="relative h-full overflow-y-auto overscroll-contain [scrollbar-width:thin] [scrollbar-color:var(--scrollbar-tint)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-(--scrollbar-tint) hover:[&::-webkit-scrollbar-thumb]:bg-(--scrollbar-tint)">
           <div
             aria-hidden
-            className="pointer-events-none absolute left-0 right-0 top-0 h-64 bg-[linear-gradient(rgba(0,0,0,0.6)_0%,rgb(18,18,18)_100%)]"
-          />
-          <div className="relative">
+            className="pointer-events-none absolute left-0 right-0 top-0 z-0 h-[420px]"
+          >
+            <div className="ambient-scrim" />
+          </div>
+          <div className="relative z-[1]">
             {header}
             {children}
-            <Footer />
           </div>
         </div>
       </main>
 
-      <div className="rounded-lg bg-[#121212] max-xl:hidden" />
+      <div className="col-span-full max-[640px]:hidden">
+        <NowPlayingBar />
+      </div>
 
-      <div className="col-span-full">
+      <div className="fixed inset-x-0 bottom-[58px] z-30 hidden max-[640px]:block">
         <NowPlayingBar />
       </div>
 

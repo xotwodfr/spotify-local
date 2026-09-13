@@ -19,6 +19,7 @@ import {
   streamUrl,
 } from "@/lib/navidrome/playback";
 import type { NSong } from "@/lib/navidrome/types";
+import { getSyncSetting } from "@/lib/settings";
 
 export type RepeatMode = "off" | "all" | "one";
 
@@ -57,8 +58,50 @@ function cloneSongList(list: NSong[]): NSong[] {
   return list.map((song) => ({ ...song }));
 }
 
+const EASE_FADE_STEPS_MS = 32;
+
+/**
+ * Ease the audio element's volume toward `to` over `durationMs`.
+ * Each element owns its fade timer so the outgoing fade-out and the incoming
+ * fade-in run independently during a crossfade.
+ */
+function fadeVolume(
+  audio: HTMLAudioElement,
+  from: number,
+  to: number,
+  durationMs: number,
+  timers: Map<HTMLAudioElement, ReturnType<typeof setInterval>>,
+  onDone?: () => void,
+) {
+  const existing = timers.get(audio);
+  if (existing) clearInterval(existing);
+  timers.delete(audio);
+  if (durationMs <= 0) {
+    audio.volume = to;
+    onDone?.();
+    return;
+  }
+  const start = performance.now();
+  const timer = setInterval(() => {
+    const t = Math.min(1, (performance.now() - start) / durationMs);
+    audio.volume = from + (to - from) * (1 - Math.pow(1 - t, 3));
+    if (t >= 1) {
+      audio.volume = to;
+      const current = timers.get(audio);
+      if (current === timer) timers.delete(audio);
+      clearInterval(timer);
+      onDone?.();
+    }
+  }, EASE_FADE_STEPS_MS);
+  timers.set(audio, timer);
+}
+
 export function PlayerProvider({ children }: { children: ReactNode }) {
+  // Two audio elements alternate so crossfade can overlap the outgoing and
+  // incoming tracks. `activeAudioRef` points at the one the UI follows.
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioBRef = useRef<HTMLAudioElement | null>(null);
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
   const queueRef = useRef<NSong[]>([]);
   const indexRef = useRef(-1);
   const connectedRef = useRef(false);
@@ -66,6 +109,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const restoredRef = useRef(false);
   const scrobbledRef = useRef<Set<string>>(new Set());
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fadeTimersRef = useRef<Map<HTMLAudioElement, ReturnType<typeof setInterval>>>(new Map());
+  // Guards the timeupdate-based early crossfade trigger so it fires once per track.
+  const crossfadeTriggeredRef = useRef(false);
 
   const [connected, setConnected] = useState(false);
   const [queue, setQueue] = useState<NSong[]>([]);
@@ -84,6 +130,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return 1;
     }
   });
+  const volumeRef = useRef(1);
   const [repeat, setRepeat] = useState<RepeatMode>("off");
   const [shuffle, setShuffle] = useState(false);
 
@@ -98,15 +145,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   function schedulePersist() {
     if (!connectedRef.current) return;
-    if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
-    persistTimerRef.current = setTimeout(() => {
-      const list = queueRef.current;
-      const idx = indexRef.current;
-      void savePlayQueue({
-        songIds: list.map((song) => song.id),
-        current: idx >= 0 ? list[idx]?.id : undefined,
-        position: Math.floor(audioRef.current?.currentTime ?? 0),
-      }).catch(() => {
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current);      persistTimerRef.current = setTimeout(() => {
+        const list = queueRef.current;
+        const idx = indexRef.current;
+        void savePlayQueue({
+          songIds: list.map((song) => song.id),
+          current: idx >= 0 ? list[idx]?.id : undefined,
+          position: Math.floor(activeAudioRef.current?.currentTime ?? 0),
+        }).catch(() => {
         // Queue persistence is best-effort.
       });
     }, 1500);
@@ -114,24 +160,73 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const startPlayback = useCallback((list: NSong[], startIndex: number) => {
     if (!list.length) return;
-    const audio = audioRef.current;
-    if (!audio) return;
+    const outgoing = activeAudioRef.current;
+    if (!outgoing && !audioRef.current) return;
     const safe = Math.min(Math.max(startIndex, 0), list.length - 1);
     const fresh = cloneSongList(list);
     commitQueue(fresh, safe);
     const song = fresh[safe];
     const url = streamUrl(song.id);
-    if (audio.getAttribute("src") !== url) {
-      audio.src = url;
-      audio.load();
+    const crossfade = Number(getSyncSetting("crossfade") ?? 0);
+    const targetVolume = volumeRef.current;
+
+    const beginOn = (audio: HTMLAudioElement) => {
+      crossfadeTriggeredRef.current = false;
+      if (audio.getAttribute("src") !== url) {
+        audio.src = url;
+        audio.load();
+      }
+      audio.currentTime = 0;
+      setCurrentTime(0);
+      void audio
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch(() => setIsPlaying(false));
+      schedulePersist();
+    };
+
+    // True crossfade: the outgoing track keeps playing while fading out as the
+    // incoming track fades in on the other element. Only when the outgoing
+    // track is actually audible — otherwise an instant switch is cleaner.
+    const canCrossfade =
+      crossfade > 0 &&
+      targetVolume > 0 &&
+      outgoing !== null &&
+      !outgoing.paused &&
+      outgoing.getAttribute("src");
+    if (canCrossfade && outgoing) {
+      const incoming = outgoing === audioRef.current ? audioBRef.current : audioRef.current;
+      if (!incoming) {
+        beginOn(outgoing);
+        return;
+      }
+      activeAudioRef.current = incoming;
+      beginOn(incoming);
+      incoming.volume = 0;
+      fadeVolume(incoming, 0, targetVolume, crossfade * 1000, fadeTimersRef.current);
+      fadeVolume(outgoing, outgoing.volume, 0, crossfade * 1000, fadeTimersRef.current, () => {
+        outgoing.pause();
+      });
+      return;
     }
-    audio.currentTime = 0;
-    setCurrentTime(0);
-    void audio
-      .play()
-      .then(() => setIsPlaying(true))
-      .catch(() => setIsPlaying(false));
-    schedulePersist();
+
+    // Instant switch: stop any element that is still sounding.
+    for (const el of [audioRef.current, audioBRef.current]) {
+      if (el && el !== outgoing) {
+        const timer = fadeTimersRef.current.get(el);
+        if (timer) clearInterval(timer);
+        fadeTimersRef.current.delete(el);
+        el.pause();
+      }
+    }
+    const audio = outgoing ?? audioRef.current;
+    if (!audio) return;
+    activeAudioRef.current = audio;
+    beginOn(audio);
+    const timer = fadeTimersRef.current.get(audio);
+    if (timer) clearInterval(timer);
+    fadeTimersRef.current.delete(audio);
+    audio.volume = targetVolume;
   }, []);
 
   const playSong = useCallback(
@@ -144,7 +239,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const toggle = useCallback(() => {
-    const audio = audioRef.current;
+    const audio = activeAudioRef.current;
     if (!audio || indexRef.current < 0) return;
     if (audio.paused) {
       void audio
@@ -188,7 +283,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const previous = useCallback(() => {
     const list = queueRef.current;
     if (!list.length) return;
-    const audio = audioRef.current;
+    const audio = activeAudioRef.current;
     if (audio && audio.currentTime > 3) {
       audio.currentTime = 0;
       setCurrentTime(0);
@@ -207,7 +302,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [repeat, startPlayback]);
 
   const seek = useCallback((position: number) => {
-    const audio = audioRef.current;
+    const audio = activeAudioRef.current;
     if (!audio) return;
     if (!Number.isFinite(position) || position < 0) return;
     audio.currentTime = position;
@@ -217,7 +312,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const changeVolume = useCallback((nextVolume: number) => {
     const clamped = Math.min(1, Math.max(0, nextVolume));
     setVolume(clamped);
+    volumeRef.current = clamped;
+    // A manual volume change cancels any in-flight fades and applies to both
+    // elements; the fading one gets retargeted on its next tick via from/to.
+    for (const [el, timer] of fadeTimersRef.current) {
+      clearInterval(timer);
+      fadeTimersRef.current.delete(el);
+    }
     if (audioRef.current) audioRef.current.volume = clamped;
+    if (audioBRef.current) audioBRef.current.volume = clamped;
     try {
       window.localStorage.setItem(VOLUME_KEY, String(clamped));
     } catch {
@@ -268,11 +371,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setCurrentTime(0);
     setDuration(0);
     setIsPlaying(false);
-    const audio = audioRef.current;
-    if (audio) {
-      audio.pause();
-      audio.removeAttribute("src");
-      audio.load();
+    for (const el of [audioRef.current, audioBRef.current]) {
+      if (el) {
+        el.pause();
+        el.removeAttribute("src");
+        el.load();
+      }
     }
     schedulePersist();
   }, []);
@@ -295,6 +399,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
     commitQueue(list, nextIndex);
     schedulePersist();
+  }, []);
+
+  useEffect(() => {
+    volumeRef.current = volume;
+  }, [volume]);
+
+  useEffect(() => {
+    const timers = fadeTimersRef.current;
+    return () => {
+      for (const timer of timers.values()) clearInterval(timer);
+      timers.clear();
+    };
   }, []);
 
   useEffect(() => {
@@ -325,6 +441,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (audio) {
           audio.src = streamUrl(entries[startIndex].id);
           audio.load();
+          activeAudioRef.current = audio;
         }
         const savedPosition =
           typeof saved?.position === "number" ? saved.position : null;
@@ -393,42 +510,112 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     ],
   );
 
+  const bindAudio = (key: "a" | "b") => (node: HTMLAudioElement | null) => {
+    if (key === "a") {
+      audioRef.current = node;
+      activeAudioRef.current = activeAudioRef.current ?? node;
+    } else {
+      audioBRef.current = node;
+    }
+    if (node) node.volume = volume;
+  };
+
+  const handleLoadedMetadata = (event: React.SyntheticEvent<HTMLAudioElement>) => {
+    // Ignore metadata from the inactive element (crossfade partner).
+    if (event.currentTarget !== activeAudioRef.current) return;
+    setDuration(event.currentTarget.duration || 0);
+    if (pendingSeekRef.current !== null) {
+      event.currentTarget.currentTime = pendingSeekRef.current;
+      setCurrentTime(pendingSeekRef.current);
+      pendingSeekRef.current = null;
+    }
+  };
+
+  const handleTimeUpdate = (event: React.SyntheticEvent<HTMLAudioElement>) => {
+    if (event.currentTarget !== activeAudioRef.current) return;
+    const audio = event.currentTarget;
+    setCurrentTime(audio.currentTime);
+
+    // Natural-end crossfade: start the next track while the current one is
+    // still sounding, so the two genuinely overlap. `ended` fires too late for
+    // that — the element is already silent — so the switch is scheduled during
+    // the final `crossfade` seconds. Fires once per track.
+    const crossfade = Number(getSyncSetting("crossfade") ?? 0);
+    const duration = audio.duration;
+    if (
+      crossfade > 0 &&
+      !crossfadeTriggeredRef.current &&
+      !audio.paused &&
+      Number.isFinite(duration) &&
+      duration > crossfade + 2 &&
+      audio.currentTime >= duration - crossfade
+    ) {
+      // Only pre-trigger when advancing will actually start a new track;
+      // otherwise the current song would be cut short at end of queue.
+      const list = queueRef.current;
+      const idx = indexRef.current;
+      const willAdvance =
+        repeat !== "off" || shuffle || idx + 1 < list.length;
+      if (!willAdvance) return;
+      crossfadeTriggeredRef.current = true;
+      const song = list[idx];
+      if (song && !scrobbledRef.current.has(song.id)) {
+        // The outgoing track's `ended` is ignored during crossfade (it is no
+        // longer the active element), so scrobble at hand-off instead.
+        scrobbledRef.current.add(song.id);
+        void scrobble(song.id, true).catch(() => {});
+      }
+      next();
+    }
+  };
+
+  const handleEnded = (event: React.SyntheticEvent<HTMLAudioElement>) => {
+    if (event.currentTarget !== activeAudioRef.current) return;
+    const song = queueRef.current[indexRef.current];
+    if (song) {
+      const id = song.id;
+      if (!scrobbledRef.current.has(id)) {
+        scrobbledRef.current.add(id);
+        void scrobble(id, true).catch(() => {});
+      }
+    }
+    // Autoplay controls whether the queue advances after a song ends.
+    if (!getSyncSetting("autoplay")) {
+      setIsPlaying(false);
+      schedulePersist();
+      return;
+    }
+    next();
+  };
+
+  const handleError = (event: React.SyntheticEvent<HTMLAudioElement>) => {
+    if (event.currentTarget !== activeAudioRef.current) return;
+    const audio = activeAudioRef.current;
+    if (audio && audio.getAttribute("src") && queueRef.current.length > 1) {
+      next();
+    }
+  };
+
   return (
     <PlayerContext.Provider value={value}>
       {children}
       <audio
-        ref={(node) => {
-          audioRef.current = node;
-          if (node) node.volume = volume;
-        }}
+        ref={bindAudio("a")}
         preload="metadata"
         className="hidden"
-        onLoadedMetadata={(event) => {
-          setDuration(event.currentTarget.duration || 0);
-          if (pendingSeekRef.current !== null) {
-            event.currentTarget.currentTime = pendingSeekRef.current;
-            setCurrentTime(pendingSeekRef.current);
-            pendingSeekRef.current = null;
-          }
-        }}
-        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-        onEnded={() => {
-          const song = queueRef.current[indexRef.current];
-          if (song) {
-            const id = song.id;
-            if (!scrobbledRef.current.has(id)) {
-              scrobbledRef.current.add(id);
-              void scrobble(id, true).catch(() => {});
-            }
-          }
-          next();
-        }}
-        onError={() => {
-          const audio = audioRef.current;
-          if (audio && audio.getAttribute("src") && queueRef.current.length > 1) {
-            next();
-          }
-        }}
+        onLoadedMetadata={handleLoadedMetadata}
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={handleEnded}
+        onError={handleError}
+      />
+      <audio
+        ref={bindAudio("b")}
+        preload="metadata"
+        className="hidden"
+        onLoadedMetadata={handleLoadedMetadata}
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={handleEnded}
+        onError={handleError}
       />
     </PlayerContext.Provider>
   );

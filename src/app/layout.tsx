@@ -5,7 +5,7 @@ import { Providers } from "@/components/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Home - Spotify",
+  title: "Home",
   description: "Listen to the songs you love anywhere.",
 };
 
@@ -16,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={cn("h-full antialiased", spotifyMixUI.variable, spotifyMixTitle.variable, spotifyMixMono.variable)}>
-      <body className="h-full overflow-hidden bg-black text-white">
+      <body className="h-full overflow-hidden bg-(--frame) text-(--fg-primary)">
         <Providers>{children}</Providers>
       </body>
     </html>

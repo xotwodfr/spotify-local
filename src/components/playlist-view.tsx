@@ -77,7 +77,7 @@ export function PlaylistView({ id }: { id: string }) {
       {state === "error" && <ErrorPanel message={error} onRetry={retry} />}
       {state === "ready" && !connected && <ConnectPrompt />}
       {state === "ready" && connected && (
-        <section className="px-10 pb-8">
+        <section className="px-10 pb-10 max-[640px]:px-6 max-[640px]:pb-24">
           {songs.length > 0 ? (
             <div className="flex flex-col">
               {songs.map((song, index) => (
@@ -93,7 +93,7 @@ export function PlaylistView({ id }: { id: string }) {
               ))}
             </div>
           ) : (
-            <p className="text-base text-[#b3b3b3]">This playlist is empty.</p>
+            <p className="text-base text-(--text-subdued)">This playlist is empty.</p>
           )}
         </section>
       )}
@@ -121,22 +121,22 @@ function PlaylistHeader({
   ].filter(Boolean);
 
   return (
-    <header className="flex items-end gap-6 px-10 pb-8 pt-24">
+    <header className="flex items-end gap-6 px-10 pb-8 pt-24 max-lg:pt-16 max-[640px]:flex-col max-[640px]:items-start max-[640px]:gap-5 max-[640px]:px-6 max-[640px]:pb-6 max-[640px]:pt-10">
       {art ? (
         <img
           src={art}
           alt={playlist.name}
-          className="h-44 w-44 rounded-[8px] object-cover shadow-[0_4px_60px_rgba(0,0,0,0.5)]"
+          className="h-44 w-44 rounded-[8px] object-cover shadow-[0_4px_60px_rgba(0,0,0,0.5)] max-[640px]:h-36 max-[640px]:w-36"
         />
       ) : (
         <div className="relative flex h-44 w-44 items-center justify-center rounded-[8px] bg-[linear-gradient(135deg,#450af5,#c4efd9)]" />
       )}
       <div className="flex min-w-0 flex-1 flex-col items-start">
-        <div className="text-sm font-bold uppercase tracking-widest text-white">Playlist</div>
-        <h1 className="mt-2 truncate text-5xl font-extrabold leading-none text-white">
+        <div className="text-sm font-bold uppercase tracking-widest text-(--fg-primary)">Playlist</div>
+        <h1 className="mt-2 line-clamp-2 text-5xl font-extrabold leading-[1.05] tracking-tight text-(--fg-primary) max-lg:text-4xl max-[640px]:text-3xl">
           {playlist.name}
         </h1>
-        <div className="mt-5 text-base font-medium text-[#b3b3b3]">
+        <div className="mt-5 text-base font-medium text-(--text-subdued)">
           {playlist.owner || "Navidrome"} · {meta.join(" · ")}
         </div>
         <button
@@ -144,7 +144,7 @@ function PlaylistHeader({
           onClick={onPlayAll}
           disabled={!hasSongs}
           aria-label={hasSongs ? `Play ${playlist.name}` : "Playlist is empty"}
-          className="mt-8 flex h-14 w-14 items-center justify-center rounded-full bg-[#1ed760] text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:bg-[#3e3e3e] disabled:text-[#b3b3b3]"
+          className="mt-8 flex h-14 w-14 items-center justify-center rounded-full bg-(--accent) text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:bg-(--input-color) disabled:text-(--text-subdued)"
         >
           <IconPlay className="h-7 w-7 fill-current" />
         </button>

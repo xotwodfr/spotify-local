@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { ArtistView } from "@/components/artist-view";
 
 export const metadata: Metadata = {
-  title: "Artist - Spotify",
+  title: "Artist",
 };
 
 export default async function ArtistPage({

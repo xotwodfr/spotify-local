@@ -4,13 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useRef } from "react";
 
-import {
-  IconBrowse,
-  IconClear,
-  IconHome,
-  IconSearch,
-  SpotifyLogo,
-} from "@/components/icons";
+import { IconSearch, IconSettings, SpotifyLogo } from "@/components/icons";
 
 function SearchForm() {
   const router = useRouter();
@@ -26,12 +20,12 @@ function SearchForm() {
     <form
       role="search"
       onSubmit={handleSubmit}
-      className="relative flex h-12 w-[min(474px,40vw)] items-center rounded-full bg-[#1f1f1f]"
+      className="group relative flex h-12 w-[min(474px,40vw)] items-center rounded-full bg-(--surface-hover) transition-colors hover:bg-(--surface-raised) focus-within:bg-(--surface-raised) focus-within:ring-2 focus-within:ring-(--fg-primary)/80"
     >
       <button
         type="submit"
         aria-label="Search"
-        className="absolute left-0 top-0 flex h-12 w-12 items-center justify-center rounded-full bg-transparent text-white"
+        className="absolute left-0 top-0 flex h-12 w-12 items-center justify-center rounded-full bg-transparent text-(--text-subdued) transition-colors hover:text-(--fg-primary) focus-visible:outline-none"
       >
         <IconSearch width={24} height={24} fill="#fff" />
       </button>
@@ -39,117 +33,29 @@ function SearchForm() {
         ref={inputRef}
         type="text"
         placeholder="What do you want to play?"
-        className="h-full w-full rounded-full border-0 bg-transparent pl-12 pr-14 text-base text-white outline-none placeholder:text-[#b3b3b3]"
+        className="h-full w-full rounded-full border-0 bg-transparent pl-12 pr-4 text-base text-(--fg-primary) outline-none placeholder:text-(--text-subdued)"
       />
-      <div className="absolute right-0 top-0 flex h-12 items-center gap-1 pr-1">
-        <kbd className="flex items-center rounded border-0 px-1.5 py-0.5 text-base text-[#b3b3b3] max-lg:hidden">
-          Ctrl
-        </kbd>
-        <kbd className="flex items-center rounded border-0 px-1.5 py-0.5 text-base text-[#b3b3b3] max-lg:hidden">
-          Shift
-        </kbd>
-        <kbd className="flex items-center rounded border-0 px-1.5 py-0.5 text-base text-[#b3b3b3] max-lg:hidden">
-          L
-        </kbd>
-        <button
-          type="button"
-          aria-label="Browse"
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-transparent text-white"
-        >
-          <IconBrowse width={24} height={24} fill="#fff" />
-        </button>
-        <button type="button" aria-label="Clear search field" className="hidden">
-          <IconClear width={16} height={16} fill="#fff" />
-        </button>
-      </div>
     </form>
-  );
-}
-
-function DownloadIcon() {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden className="h-4 w-4 fill-[#b3b3b3] transition group-hover:fill-white">
-      <path d="M8 .75a.75.75 0 0 1 .75.75v8.69l2.72-2.72a.75.75 0 1 1 1.06 1.06l-4 4a.75.75 0 0 1-1.06 0l-4-4a.75.75 0 0 1 1.06-1.06l2.72 2.72V1.5A.75.75 0 0 1 8 .75Z" />
-      <path d="M1.5 10.25a.75.75 0 0 1 .75.75v2.5a.5.5 0 0 0 .5.5h10.5a.5.5 0 0 0 .5-.5V11a.75.75 0 0 1 1.5 0v2.5a2 2 0 0 1-2 2H2.75a2 2 0 0 1-2-2V11a.75.75 0 0 1 .75-.75Z" />
-    </svg>
   );
 }
 
 export function TopBar() {
   return (
-    <header className="col-span-full flex h-16 items-center justify-between gap-2 bg-black p-2">
-      <Link href="/" aria-label="Home" className="hidden w-[72px] shrink-0 items-center max-lg:flex">
-        <SpotifyLogo width={32} height={32} fill="#fff" />
-      </Link>
-      <div className="flex items-center gap-2 max-lg:hidden">
+    <header className="col-span-full flex h-16 items-center justify-between gap-2 bg-[color-mix(in_oklab,var(--frame)_90%2ctransparent)] p-2">
+      <div className="flex items-center gap-2">
         <Link href="/" aria-label="Home" className="flex w-[72px] shrink-0 items-center">
           <SpotifyLogo width={32} height={32} fill="#fff" />
         </Link>
-        <button
-          type="button"
-          aria-label="Home"
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1f1f1f] text-white"
-        >
-          <IconHome width={24} height={24} fill="#fff" />
-        </button>
         <SearchForm />
       </div>
-      <div className="flex items-center gap-2 max-lg:hidden">
-        <div className="flex items-center gap-2 max-[1199px]:hidden">
-          <button
-            type="button"
-            className="py-2 text-base font-bold text-[#b3b3b3] transition hover:text-white"
-          >
-            Premium
-          </button>
-          <button
-            type="button"
-            className="py-2 text-base font-bold text-[#b3b3b3] transition hover:text-white"
-          >
-            Support
-          </button>
-          <button
-            type="button"
-            className="py-2 text-base font-bold text-[#b3b3b3] transition hover:text-white"
-          >
-            Download
-          </button>
-          <span aria-hidden className="mx-4 h-[25px] w-px bg-white" />
-          <a
-            href="#"
-            className="group flex h-8 items-center rounded-full py-1 pl-9 pr-4 text-sm font-bold text-[#b3b3b3] transition hover:text-white"
-          >
-            <DownloadIcon />
-            Install App
-          </a>
-        </div>
-        <button
-          type="button"
-          className="py-1 pl-2 pr-4 text-sm font-bold text-[#b3b3b3] transition hover:text-white"
-        >
-          Sign up
-        </button>
-        <Link
-          href="/settings"
-          className="rounded-full bg-white px-8 py-2 text-base font-bold text-black transition hover:scale-[1.04]"
-        >
-          Log in
-        </Link>
-      </div>
-      <div className="hidden items-center gap-2 max-lg:flex">
-        <button
-          type="button"
-          className="py-1 pl-2 pr-4 text-sm font-bold text-[#b3b3b3] transition hover:text-white"
-        >
-          Sign up
-        </button>
-        <Link
-          href="/settings"
-          className="rounded-full bg-white px-8 py-2 text-base font-bold text-black transition hover:scale-[1.04]"
-        >
-          Log in
-        </Link>
-      </div>
+      <Link
+        href="/settings"
+        aria-label="Settings"
+        title="Settings"
+        className="flex h-10 w-10 items-center justify-center rounded-full bg-(--surface-hover) text-(--text-subdued) transition-colors hover:bg-(--surface-raised) hover:text-(--fg-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80"
+      >
+        <IconSettings width={20} height={20} />
+      </Link>
     </header>
   );
 }

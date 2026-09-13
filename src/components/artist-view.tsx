@@ -100,10 +100,10 @@ export function ArtistView({ id }: { id: string }) {
       {state === "error" && <ErrorPanel message={error} onRetry={retry} />}
       {state === "ready" && !connected && <ConnectPrompt />}
       {state === "ready" && connected && (
-        <section className="px-10 pb-8">
+        <section className="px-10 pb-10 max-[640px]:px-6 max-[640px]:pb-24">
           {songs.length > 0 && (
             <section className="mb-10">
-              <h2 className="mb-4 text-2xl font-bold text-white">Popular songs</h2>
+              <h2 className="mb-4 text-2xl font-bold text-(--fg-primary)">Popular songs</h2>
               <div className="flex flex-col">
                 {songs.slice(0, 12).map((song, index) => (
                   <TrackRow
@@ -122,7 +122,7 @@ export function ArtistView({ id }: { id: string }) {
 
           {albums.length > 0 && (
             <section>
-              <h2 className="mb-4 text-2xl font-bold text-white">Albums</h2>
+              <h2 className="mb-4 text-2xl font-bold text-(--fg-primary)">Albums</h2>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(196px,1fr))] gap-2">
                 {albumCards.map((item) => (
                   <MediaCard key={item.id} item={item} />
@@ -132,7 +132,7 @@ export function ArtistView({ id }: { id: string }) {
           )}
 
           {songs.length === 0 && albums.length === 0 && (
-            <p className="text-base text-[#b3b3b3]">No music found for this artist.</p>
+            <p className="text-base text-(--text-subdued)">No music found for this artist.</p>
           )}
         </section>
       )}
@@ -156,22 +156,22 @@ function ArtistHeader({
   hasSongs: boolean;
 }) {
   return (
-    <header className="flex items-end gap-6 px-10 pb-8 pt-24">
+    <header className="flex items-end gap-6 px-10 pb-8 pt-24 max-lg:pt-16 max-[640px]:flex-col max-[640px]:items-start max-[640px]:gap-5 max-[640px]:px-6 max-[640px]:pb-6 max-[640px]:pt-10">
       {image ? (
         <img
           src={image}
           alt={name}
-          className="h-40 w-40 rounded-full object-cover shadow-[0_4px_60px_rgba(0,0,0,0.5)]"
+          className="h-40 w-40 rounded-full object-cover shadow-[0_4px_60px_rgba(0,0,0,0.5)] max-[640px]:h-36 max-[640px]:w-36"
         />
       ) : (
-        <div className="flex h-40 w-40 items-center justify-center rounded-full bg-[#1f1f1f]" />
+        <div className="flex h-40 w-40 items-center justify-center rounded-full bg-(--surface-hover)" />
       )}
       <div className="flex min-w-0 flex-1 flex-col items-start">
-        <div className="text-sm font-bold uppercase tracking-widest text-white">Artist</div>
-        <h1 className="mt-2 truncate text-6xl font-extrabold leading-none text-white">
+        <div className="text-sm font-bold uppercase tracking-widest text-(--fg-primary)">Artist</div>
+        <h1 className="mt-2 line-clamp-2 text-6xl font-extrabold leading-[1.05] tracking-tight text-(--fg-primary) max-lg:text-5xl max-[640px]:text-3xl">
           {name}
         </h1>
-        <p className="mt-5 text-sm font-medium text-[#b3b3b3]">
+        <p className="mt-5 text-sm font-medium text-(--text-subdued)">
           {albumCount} album{albumCount === 1 ? "" : "s"} · {songCount} song
           {songCount === 1 ? "" : "s"}
         </p>
@@ -180,7 +180,7 @@ function ArtistHeader({
           onClick={onPlayAll}
           disabled={!hasSongs}
           aria-label={hasSongs ? `Play ${name}` : "No songs available"}
-          className="mt-6 flex h-12 w-12 items-center justify-center rounded-full bg-[#1ed760] text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:bg-[#3e3e3e] disabled:text-[#b3b3b3]"
+          className="mt-6 flex h-12 w-12 items-center justify-center rounded-full bg-(--accent) text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:bg-(--input-color) disabled:text-(--text-subdued)"
         >
           <IconPlay className="h-6 w-6 fill-current" />
         </button>

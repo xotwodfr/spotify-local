@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { AlbumView } from "@/components/album-view";
 
 export const metadata: Metadata = {
-  title: "Album - Spotify",
+  title: "Album",
 };
 
 export default async function AlbumPage({
