@@ -66,7 +66,7 @@ Quickly search your entire music library through Navidrome's API.
 
 ### Lyrics
 
-Built-in lyrics support with a dedicated Spotify-inspired lyrics experience.
+Built-in lyrics support with two dedicated lyric modes.
 
 </td>
 <td width="50%">
@@ -87,7 +87,7 @@ Designed to work across:
 
 ### Native Linux App
 
-Run Spotify Local as a native Linux desktop application using Tauri.
+Run Spotify Local as a native Linux desktop application using Tauri. (support for other operating systems is in development)
 
 </td>
 <td width="50%">
