@@ -1,52 +1,134 @@
-# Spotify Local
+<div align="center">
 
-A Spotify-inspired client for self-hosted music, built around Navidrome and the OpenSubsonic API.
+# 🎵 Spotify Local
 
-Spotify Local gives you a familiar music streaming interface while keeping your music library on your own server.
+### A beautiful, self-hosted music player built around Navidrome.
 
-## Features
+[![GitHub release](https://img.shields.io/github/v/release/xotwodfr/spotify-local?style=for-the-badge)](https://github.com/xotwodfr/spotify-local/releases)
+[![License](https://img.shields.io/github/license/xotwodfr/spotify-local?style=for-the-badge)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Linux-1793D1?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/xotwodfr/spotify-local)
+[![Navidrome](https://img.shields.io/badge/Powered%20by-Navidrome-5B5B5B?style=for-the-badge)](https://www.navidrome.org/)
 
-- Spotify-inspired interface
-- Navidrome integration
-- OpenSubsonic API support
-- Search your music library
-- Browse artists, albums, and tracks
+<br>
+
+**Spotify-inspired. Self-hosted. Yours.**
+
+[Download](https://github.com/xotwodfr/spotify-local/releases) ·
+[Documentation](docs/) ·
+[Report a Bug](https://github.com/xotwodfr/spotify-local/issues) ·
+[Contribute](https://github.com/xotwodfr/spotify-local/pulls)
+
+</div>
+
+---
+
+## ✨ What is Spotify Local?
+
+Spotify Local is a modern music client for your own music library.
+
+It connects directly to **Navidrome** through the **OpenSubsonic API**, giving you a familiar Spotify-style experience without relying on Spotify's infrastructure.
+
+Your music stays on your server.
+
+Your library stays yours.
+
+---
+
+## 🚀 Features
+
+<table>
+<tr>
+<td width="50%">
+
+### 🎧 Music Library
+
+Browse your:
+
+- Artists
+- Albums
+- Tracks
+- Playlists
+- Recently added music
 - Recommended music
-- Recently added media
-- Playlist support
-- Lyrics support
-- Spotify-style lyrics interface
-- Responsive desktop and mobile layouts
-- Native Linux desktop application
-- Arch Linux / Pacman package
-- Docker support
-- Self-hosted music library
-- No Spotify account required
 
-## Requirements
+</td>
+<td width="50%">
 
-For using Spotify Local, you need:
+### 🔎 Search
 
-- A running Navidrome server
-- A Navidrome account
-- Your Navidrome server URL
-  
-For development, you also need:
+Quickly search your entire music library through Navidrome's API.
 
-- Node.js
-- npm
+</td>
+</tr>
 
-Spotify Local communicates with Navidrome through its OpenSubsonic-compatible API.
+<tr>
+<td width="50%">
 
-Your music files stay on your own server. Spotify Local acts as the client.
+### 🎤 Lyrics
 
-## Installation
+Built-in lyrics support with a dedicated Spotify-inspired lyrics experience.
 
-### Arch Linux
+</td>
+<td width="50%">
 
-Download the latest Arch Linux package from the GitHub Releases page.
+### 📱 Responsive
 
-Install it with:
+Designed to work across:
 
-```bash
-sudo pacman -U spotify-local-1.0.0-1-x86_64.pkg.tar.zst
+- Desktop
+- Laptop
+- Mobile
+
+</td>
+</tr>
+
+<tr>
+<td width="50%">
+
+### 🖥️ Native Linux App
+
+Run Spotify Local as a native Linux desktop application using Tauri.
+
+</td>
+<td width="50%">
+
+### 🐳 Docker
+
+Run the web application using Docker for easy self-hosting.
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🧩 How it works
+
+```text
+┌──────────────────────┐
+│                      │
+│    Spotify Local     │
+│                      │
+│   Web / Desktop      │
+│                      │
+└──────────┬───────────┘
+           │
+           │ OpenSubsonic API
+           ▼
+┌──────────────────────┐
+│                      │
+│      Navidrome       │
+│                      │
+│    Music Server      │
+│                      │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│                      │
+│    Your Music        │
+│                      │
+│  Albums · Artists    │
+│  Tracks · Playlists  │
+│                      │
+└──────────────────────┘
