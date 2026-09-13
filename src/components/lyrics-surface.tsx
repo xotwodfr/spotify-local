@@ -16,6 +16,7 @@ import {
   fetchLyrics,
   LyricsNetworkError,
   type LyricLine,
+  type LyricWord,
   type LyricsProvenance,
   type LyricsResult,
 } from "@/lib/lyrics";
@@ -34,8 +35,13 @@ const USER_SCROLL_RESUME_MS = 4000;
 /** Frame-to-frame time jump larger than this is a seek → snap instead of glide. */
 const SEEK_JUMP_SECONDS = 1.2;
 
-/** Peak word scale per animation-strength setting (Word Sync style). */
-const WORD_SCALE: Record<string, number> = { off: 0, subtle: 0.05, normal: 0.1, strong: 0.16 };
+/**
+ * How far the bright flow head rides ahead of the raw sung progress, in word
+ * units, per intensity setting. The head sweeping slightly early reads as the
+ * color "arriving" on the word as it is sung; the colored trail behind it is
+ * CSS-side (--flow-trail) and widens with the same intensity setting.
+ */
+const FLOW_LEAD: Record<string, number> = { subtle: 0.05, normal: 0.15, strong: 0.3 };
 
 export const PROVIDER_STORAGE_KEY = "spotify-local/lyrics-provider";
 
@@ -77,25 +83,20 @@ function findActiveIndex(lines: LyricLine[], time: number): number {
   return found;
 }
 
-/**
- * Word motion envelope, p ∈ [0, 1+]: how "sung" a word is at playback time.
- * Rises quickly as the word begins, peaks while it is being sung, then eases
- * back down right after it ends — the breathing curve that makes words feel
- * alive without ever looking jumpy.
- */
-function wordEnvelope(time: number, start: number, end: number): number {
-  if (time <= start) return 0;
-  const duration = Math.max(0.05, end - start);
-  const p = (time - start) / duration;
-  // Rise: 0→1 over the first 35% (smoothstep), hold, fall: 1→0 from 75%→135%.
-  if (p < 0.35) {
-    const t = p / 0.35;
-    return t * t * (3 - 2 * t);
+function findActiveWordIndex(words: LyricWord[], time: number): number {
+  let low = 0;
+  let high = words.length - 1;
+  let found = -1;
+  while (low <= high) {
+    const mid = (low + high) >>> 1;
+    if (words[mid].start <= time) {
+      found = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
   }
-  if (p < 0.75) return 1;
-  const t = Math.min(1, (p - 0.75) / 0.6);
-  const decay = 1 - t;
-  return decay * decay * (3 - 2 * decay);
+  return found;
 }
 
 /** Emphasis class for a line at `distance` from the active line. */
@@ -109,8 +110,17 @@ function distanceClass(distance: number): string {
 /**
  * Shared lyrics engine: one rAF loop per open surface that reads the audio
  * element's clock directly and writes only the DOM properties that changed.
- * No React state changes during playback — active-line emphasis, word motion,
- * and follow scroll are all direct style/class writes on cached elements.
+ * No React state changes during playback — active-line emphasis, the word
+ * color flow, and follow scroll are all direct style/class writes on cached
+ * elements.
+ *
+ * Word synchronization is a single custom property per frame: the engine
+ * maintains the active word index incrementally (binary search only on seeks)
+ * and writes one `--flow` value (in word units) on the active line. Each
+ * word's gradient maps that shared value into its own box via its static
+ * `--word-i` index, so the accent travels word-by-word in timing order —
+ * one style write per frame total, no per-word loops, no transforms, no
+ * compositor layers.
  */
 function useLyricsEngine(
   scrollRef: React.RefObject<HTMLDivElement | null>,
@@ -147,28 +157,55 @@ function useLyricsEngine(
       cancelAnimationFrame(attachRaf);
       engine.stop();
     };
-  }, [scrollRef, lineElsRef, lines, enabled, settings.autoScrollLyrics, settings.centerActiveLyric, settings.lyricsStyle, settings.wordAnimation, settings.wordSyncedLyrics, settings.animations]);
+  // `runEngine` is intentionally scoped to the effect's settings snapshot;
+  // changing any listed setting tears down and recreates the controller.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    scrollRef,
+    lineElsRef,
+    lines,
+    enabled,
+    settings.autoScrollLyrics,
+    settings.centerActiveLyric,
+    settings.lyricsStyle,
+    settings.wordFlow,
+    settings.wordFlowIntensity,
+    settings.lineAnimation,
+    settings.respectReducedMotion,
+    settings.wordSyncedLyrics,
+    settings.animations,
+  ]); // runEngine is intentionally scoped to this hook and covered by the settings dependencies
 
   /** The full animation engine, bound to its scroll container. */
   function runEngine(container: HTMLDivElement) {
+    // The theme provider is the single source of truth for the resolved
+    // motion mode (settings + prefers-reduced-motion). Read its flag once;
+    // on first mount it may not have run yet, so fall back to the media query.
+    const motion = document.documentElement.dataset.motion;
     const reducedMotion =
-      settings.animations === "reduced" ||
-      settings.animations === "off" ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      motion === "off" ||
+      motion === "reduced" ||
+      (motion === undefined && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    const lineAnimEnabled = settings.lineAnimation === "on" && !reducedMotion;
+    const snapScroll = !lineAnimEnabled;
 
     const autoScrollEnabled = settings.autoScrollLyrics && !reducedMotion;
-    const wordScale = settings.animations === "off" ? 0 : reducedMotion ? 0 : WORD_SCALE[settings.wordAnimation] ?? 0.1;
     const style = settings.lyricsStyle;
-    const useWordMotion = style === "wordsync" && settings.wordSyncedLyrics && wordScale > 0;
+    const useFlow = style === "flow" && settings.wordSyncedLyrics && settings.wordFlow;
+    const flowLead = FLOW_LEAD[settings.wordFlowIntensity] ?? 0.15;
     const useWordFill = style === "standard" && settings.wordSyncedLyrics;
     const focusRatio = settings.centerActiveLyric ? 0.42 : 0.36;
 
     const spring = { y: 0, init: false };
+    let containerHeight = container.clientHeight;
+    let maxScroll = Math.max(0, container.scrollHeight - containerHeight);
     let measuredFor = -2;
     let geometry: { top: number; height: number } | null = null;
     let lastActive = -2;
     let lastTime = -1;
+    // Word bookkeeping for the active line only (fill path + flow index).
     let activeSpans: HTMLElement[] | null = null;
+    let activeWordIndex = -2;
     let activeLineEl: HTMLElement | null = null;
     let raf = 0;
     let last = performance.now();
@@ -222,17 +259,20 @@ function useLyricsEngine(
     };
 
     // Cached container metrics: clientHeight/scrollHeight are layout reads,
-    // so they are refreshed only on resize — never per frame.
-    let containerHeight = container.clientHeight;
-    const resizeObserver = new ResizeObserver(() => {
+    // so they are refreshed only on resize or when a new line is measured.
+    const refreshGeometry = () => {
       measuredFor = -2;
       containerHeight = container.clientHeight;
+      maxScroll = Math.max(0, container.scrollHeight - containerHeight);
+    };
+
+    const resizeObserver = new ResizeObserver(() => {
+      refreshGeometry();
       wake();
     });
     resizeObserver.observe(container);
     const onResize = () => {
-      measuredFor = -2;
-      containerHeight = container.clientHeight;
+      refreshGeometry();
       wake();
     };
     window.addEventListener("resize", onResize);
@@ -246,8 +286,24 @@ function useLyricsEngine(
       return Array.from(line.querySelectorAll<HTMLElement>("[data-word]"));
     };
 
-    // Incremental active-line lookup: advance from the previous index during
-    // normal playback (O(1)); binary-search only after a seek (O(log n)).
+    const setWordProgress = (span: HTMLElement, progress: number) => {
+      const progressText = progress.toFixed(2);
+      if (span.dataset.progress !== progressText) {
+        span.dataset.progress = progressText;
+        span.style.setProperty("--word-progress", progressText);
+      }
+    };
+
+    const initializeLineWords = (words: LyricWord[], spans: HTMLElement[], time: number) => {
+      for (let index = 0; index < spans.length; index += 1) {
+        const word = words[index];
+        const span = spans[index];
+        if (!word || !span) continue;
+        const past = time >= word.end;
+        setWordProgress(span, past ? 1 : 0);
+      }
+    };
+
     let activeCursor = 0;
     const findActiveIncremental = (time: number): number => {
       let index = Math.min(Math.max(activeCursor, 0), lines.length - 1);
@@ -262,6 +318,28 @@ function useLyricsEngine(
       return found;
     };
 
+    // Only the neighborhoods around an active line can change emphasis.
+    const updateLineClasses = (center: number) => {
+      if (center < 0) return;
+      for (let offset = -3; offset <= 3; offset += 1) {
+        const index = center + offset;
+        if (index < 0 || index >= lines.length) continue;
+        const el = lineElsRef.current?.get(index);
+        if (!el) continue;
+        const nextClass = `lyrics-line ${distanceClass(Math.abs(offset))}`;
+        if (el.className !== nextClass) {
+          el.className = nextClass;
+        }
+      }
+    };
+
+    /** Drop the flow value from a line so its words return to the base color. */
+    const clearFlow = (lineEl: HTMLElement | null) => {
+      if (!lineEl) return;
+      if (lineEl.dataset.flow !== undefined) delete lineEl.dataset.flow;
+      lineEl.style.removeProperty("--flow");
+    };
+
     const frame = () => {
       const now = performance.now();
       const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
@@ -272,41 +350,36 @@ function useLyricsEngine(
       // with no anchor/extrapolation state to invalidate.
       const time = playbackClock.getTime();
       const playing = !playbackClock.getElement()?.paused;
+      const isSeek = lastTime >= 0 && Math.abs(time - lastTime) > SEEK_JUMP_SECONDS;
 
-      const active = findActiveIncremental(time);
+      const active = isSeek ? findActiveIndex(lines, time) : findActiveIncremental(time);
 
-      // A large jump between frames means the user sought — snap the scroll.
-      if (lastTime >= 0 && Math.abs(time - lastTime) > SEEK_JUMP_SECONDS) {
+      if (isSeek) {
+        activeCursor = Math.max(active, 0);
         spring.init = false;
         measuredFor = -2;
       }
       lastTime = time;
 
       if (active !== lastActive) {
-        // Update emphasis classes only for lines whose class actually changes.
-        const lo = Math.min(active, lastActive);
-        const hi = Math.max(active, lastActive);
-        for (let index = Math.max(0, lo - 1); index <= hi + 1; index += 1) {
-          const el = lineElsRef.current?.get(index);
-          if (!el) continue;
-          const nextClass = distanceClass(Math.abs(index - active));
-          if (el.className !== `lyrics-line ${nextClass}`) {
-            el.className = `lyrics-line ${nextClass}`;
-          }
-        }
-        // Reset motion on the outgoing line's words in one pass. The write
-        // cache must clear too, or a re-activated line would skip its first
+        // Only the neighborhoods around the old and new active lines can
+        // change emphasis. This stays O(1) even when a seek jumps hundreds
+        // of lines; the skipped lines were already distant.
+        updateLineClasses(lastActive);
+        updateLineClasses(active);
+
+        // Reset word state on the outgoing line in one pass. The write
+        // caches must clear too, or a re-activated line would skip its first
         // write (dataset value would equal the stale cached one).
+        clearFlow(activeLineEl);
         if (activeSpans) {
           for (const span of activeSpans) {
-            span.dataset.scale = "";
-            span.dataset.wpos = "";
             span.dataset.progress = "";
-            span.style.transform = "";
-            span.style.setProperty("--wpos", "-30%");
+            span.style.removeProperty("--word-progress");
           }
+          activeSpans = null;
         }
-        activeSpans = null;
+        activeWordIndex = -2;
         lastActive = active;
         measuredFor = -2;
       }
@@ -316,21 +389,19 @@ function useLyricsEngine(
         if (measured || active < 0) {
           geometry = measured;
           measuredFor = active;
+          // Content height is stable between lyric/layout changes. Refresh it
+          // once with the active-line measurement, never inside every frame.
+          maxScroll = Math.max(0, container.scrollHeight - containerHeight);
         }
-        // Promote only the animating line's words to compositor layers.
-        activeLineEl?.classList.remove("lyrics-animating");
-        activeLineEl = active >= 0 ? lineElsRef.current?.get(active) ?? null : null;
-        activeLineEl?.classList.add("lyrics-animating");
       }
 
       // --- Follow scroll: continuous spring toward the active line ---
       let scrollSettled = true;
       if (autoScrollEnabled) {
-        const maxScroll = container.scrollHeight - containerHeight;
         const rawTargetY = geometry ? geometry.top + geometry.height / 2 - containerHeight * focusRatio : 0;
         const targetY = Math.min(Math.max(rawTargetY, 0), maxScroll);
 
-        if (!spring.init || reducedMotion) {
+        if (!spring.init || snapScroll) {
           spring.y = targetY;
           spring.init = true;
           container.scrollTop = targetY;
@@ -351,40 +422,73 @@ function useLyricsEngine(
         }
       }
 
-      // --- Word-level motion: only the words that can visually change ---
+      // --- Word color flow / legacy fill: only the active line participates ---
       if (active >= 0) {
         const line = lines[active];
         const words = line?.words;
         const hasWords = Boolean(words && words.length >= 2);
 
-        if ((useWordMotion || useWordFill) && hasWords) {
-          if (!activeSpans) activeSpans = collectSpans(active);
+        if ((useFlow || useWordFill) && hasWords) {
           const list = words!;
-          for (let index = 0; index < activeSpans.length; index += 1) {
-            const word = list[index];
-            const span = activeSpans[index];
-            if (!word || !span) continue;
-            if (useWordMotion) {
-              const envelope = wordEnvelope(time, word.start, word.end);
-              const scale = 1 + wordScale * envelope;
-              // Write-diff: touch the DOM only when the rounded value moves.
-              const nextText = scale.toFixed(3);
-              if (span.dataset.scale !== nextText) {
-                span.dataset.scale = nextText;
-                span.style.transform = `scale(${nextText})`;
-              }
-              const progress = time >= word.end ? 1 : time <= word.start ? 0 : (time - word.start) / Math.max(0.001, word.end - word.start);
-              const posText = (-30 + progress * 145).toFixed(1);
-              if (span.dataset.wpos !== posText) {
-                span.dataset.wpos = posText;
-                span.style.setProperty("--wpos", `${posText}%`);
-              }
-            } else if (useWordFill) {
-              const progress = time >= word.end ? 1 : time <= word.start ? 0 : (time - word.start) / Math.max(0.001, word.end - word.start);
-              const progText = progress.toFixed(2);
-              if (span.dataset.progress !== progText) {
-                span.dataset.progress = progText;
-                span.style.setProperty("--word-progress", progText);
+          const lineEl = lineElsRef.current?.get(active) ?? null;
+          if (lineEl !== activeLineEl) {
+            // Line switch: the outgoing line already had its flow cleared
+            // above; just adopt the new line element.
+            activeLineEl = lineEl;
+          }
+
+          // Maintain the active word index incrementally; binary search only
+          // on seeks or when time moved before the cached word.
+          let nextWordIndex = activeWordIndex;
+          if (
+            nextWordIndex === -2 ||
+            nextWordIndex >= list.length ||
+            (nextWordIndex >= 0 && time < list[nextWordIndex].start)
+          ) {
+            nextWordIndex = findActiveWordIndex(list, time);
+          } else {
+            while (nextWordIndex + 1 < list.length && time >= list[nextWordIndex + 1].start) {
+              nextWordIndex += 1;
+            }
+          }
+          activeWordIndex = nextWordIndex;
+
+          if (useFlow) {
+            // One custom-property write per frame for the whole line: the
+            // flow head position in word units. Each word resolves its own
+            // gradient stop from this value and its static --word-i index.
+            const count = list.length;
+            let flow: number;
+            if (nextWordIndex < 0) {
+              // Line started but the first word has not: head parked before
+              // the line so every word renders in its dim base color.
+              flow = -0.5;
+            } else {
+              const word = list[nextWordIndex];
+              const progress =
+                time <= word.start ? 0 : time >= word.end ? 1 : (time - word.start) / Math.max(0.001, word.end - word.start);
+              flow = nextWordIndex + progress + flowLead;
+            }
+            flow = Math.min(count + flowLead, Math.max(-0.5, flow));
+            const flowText = flow.toFixed(2);
+            if (lineEl && lineEl.dataset.flow !== flowText) {
+              lineEl.dataset.flow = flowText;
+              lineEl.style.setProperty("--flow", flowText);
+            }
+          } else if (useWordFill && lineEl) {
+            // Standard style: legacy per-word karaoke fill (unchanged cost
+            // profile: only the current word's value updates per frame).
+            if (!activeSpans) {
+              activeSpans = collectSpans(active);
+              initializeLineWords(list, activeSpans, time);
+            }
+            if (nextWordIndex >= 0 && nextWordIndex < activeSpans.length) {
+              const word = list[nextWordIndex];
+              const span = activeSpans[nextWordIndex];
+              if (word && span) {
+                const progress =
+                  time <= word.start ? 0 : time >= word.end ? 1 : (time - word.start) / Math.max(0.001, word.end - word.start);
+                setWordProgress(span, progress);
               }
             }
           }
@@ -412,7 +516,10 @@ function useLyricsEngine(
       container.removeEventListener("wheel", beginUserScroll);
       container.removeEventListener("touchstart", beginUserScroll);
       container.removeEventListener("pointerdown", beginUserScroll);
-      activeLineEl?.classList.remove("lyrics-animating");
+      for (const lineEl of lineElsRef.current?.values() ?? []) {
+        lineEl.style.removeProperty("--flow");
+        if (lineEl.dataset.flow !== undefined) delete lineEl.dataset.flow;
+      }
       if (scrollTimer) clearTimeout(scrollTimer);
     };
   }
@@ -424,7 +531,10 @@ function useLyricsEngine(
  * the centered pop-out panel and the floating window — each shell provides
  * its own chrome around `content`.
  */
-export function useLyrics(onLoadedChange?: (loaded: boolean) => void) {
+export function useLyrics(
+  onLoadedChange?: (loaded: boolean) => void,
+  visible = true,
+) {
   const player = usePlayer();
   const { settings } = useSettings();
   const song = player.current;
@@ -448,7 +558,7 @@ export function useLyrics(onLoadedChange?: (loaded: boolean) => void) {
     onLoadedChangeRef.current = onLoadedChange;
   }, [onLoadedChange]);
 
-  // Load provider options once (async, outside render).
+  // Load provider options when a lyrics surface becomes visible.
   useEffect(() => {
     let cancelled = false;
     void fetch("/api/lyrics/providers")
@@ -467,7 +577,7 @@ export function useLyrics(onLoadedChange?: (loaded: boolean) => void) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [visible]);
 
   const chooseProvider = useCallback((id: string) => {
     setProviderSelection(id);
@@ -499,7 +609,7 @@ export function useLyrics(onLoadedChange?: (loaded: boolean) => void) {
   }, [state, cacheKey, providerSelection]);
 
   useEffect(() => {
-    if (!song || !cacheKey) return;
+    if (!visible || !song || !cacheKey) return;
     const cacheId = `${providerSelection}\u0000${cacheKey}`;
     if (cachedLyrics(cacheId) || failureIsActive(cacheId)) return;
 
@@ -533,7 +643,7 @@ export function useLyrics(onLoadedChange?: (loaded: boolean) => void) {
       });
 
     return () => controller.abort();
-  }, [cacheKey, song, retryAttempt, providerSelection]);
+  }, [cacheKey, song, retryAttempt, providerSelection, visible]);
 
   const syncedLines = useMemo(
     () => (status.kind === "loaded" && status.result?.status === "synced" ? status.result.lines : null),
@@ -545,7 +655,12 @@ export function useLyrics(onLoadedChange?: (loaded: boolean) => void) {
   }, [syncedLines]);
 
   // One rAF engine per open surface; writes DOM directly, no React churn.
-  useLyricsEngine(scrollRef, lineElsRef, syncedLines ?? [], Boolean(syncedLines));
+  useLyricsEngine(
+    scrollRef,
+    lineElsRef,
+    syncedLines ?? [],
+    Boolean(syncedLines) && visible,
+  );
 
   const providerLabel = useMemo(() => {
     if (providerSelection === "auto") {
@@ -555,8 +670,14 @@ export function useLyrics(onLoadedChange?: (loaded: boolean) => void) {
     return providerOptions.find((option) => option.id === providerSelection)?.name ?? providerSelection;
   }, [providerSelection, status, providerOptions]);
 
-  const wordStyleOn = settings.lyricsStyle === "wordsync" && settings.wordSyncedLyrics;
+  const flowOn = settings.lyricsStyle === "flow" && settings.wordSyncedLyrics && settings.wordFlow;
   const standardFillOn = settings.lyricsStyle === "standard" && settings.wordSyncedLyrics;
+  const styleClass = flowOn
+    ? `lyrics-style-flow lyrics-flow-${settings.wordFlowIntensity}`
+    : standardFillOn
+      ? "lyrics-style-standard"
+      : "lyrics-style-minimal";
+  const lineStaticClass = settings.lineAnimation === "off" ? "lyrics-line-static" : "";
 
   const picker = (
     <ProviderPicker
@@ -620,10 +741,10 @@ export function useLyrics(onLoadedChange?: (loaded: boolean) => void) {
         )}
 
         {song && status.kind === "loaded" && status.result?.status === "synced" && (
-          <div className={`lyrics-lines relative z-10 flex flex-col items-start gap-[0.35em] ${fontClass} ${wordStyleOn ? "lyrics-style-wordsync" : standardFillOn ? "lyrics-style-standard" : "lyrics-style-minimal"}`}>
+          <div className={`lyrics-lines relative z-10 flex flex-col items-start gap-[0.35em] ${fontClass} ${styleClass} ${lineStaticClass}`}>
             {status.result.lines.map((line, index) => {
               const hasWords = Boolean(line.words && line.words.length >= 2);
-              const useWords = (wordStyleOn || standardFillOn) && settings.wordSyncedLyrics && hasWords;
+              const useWords = (flowOn || standardFillOn) && hasWords;
               const showTranslation = settings.showTranslation && line.translation;
               return (
                 <div
@@ -651,7 +772,7 @@ export function useLyrics(onLoadedChange?: (loaded: boolean) => void) {
                         data-word
                         data-start={word.start}
                         className="lyrics-word"
-                        style={{ "--wscale": 1, "--wpos": "-30%", "--word-progress": 0 } as React.CSSProperties}
+                        style={{ "--word-i": wordIndex, "--word-progress": 0 } as React.CSSProperties}
                         onClick={(event) => {
                           event.stopPropagation();
                           player.seek(word.start);

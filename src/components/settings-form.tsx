@@ -15,11 +15,13 @@ import {
   useSettings,
   type AnimationMode,
   type BackgroundIntensity,
+  type LineAnimation,
   type LyricsFontSize,
   type LyricsStyle,
+  type PaletteSpeed,
   type PlaybackQuality,
   type ThemeMode,
-  type WordAnimation,
+  type WordFlowIntensity,
 } from "@/lib/settings";
 
 const inputClass =
@@ -281,11 +283,20 @@ export function SettingsForm() {
             />
           </Row>
 
-          <Row label="Background strength" description="How much the artwork-driven ambient field saturates the background.">
+          <Row label="Color intensity" description="How strongly artwork colors saturate backgrounds, glows and accents.">
             <Segmented<BackgroundIntensity>
               value={settings.backgroundIntensity}
               onChange={(next) => update({ backgroundIntensity: next })}
               options={["subtle", "balanced", "strong"] as const}
+              getLabel={(option) => option[0].toUpperCase() + option.slice(1)}
+            />
+          </Row>
+
+          <Row label="Palette transition speed" description="How quickly colors crossfade when the track (or theme) changes.">
+            <Segmented<PaletteSpeed>
+              value={settings.paletteSpeed}
+              onChange={(next) => update({ paletteSpeed: next })}
+              options={["fast", "smooth", "gentle"] as const}
               getLabel={(option) => option[0].toUpperCase() + option.slice(1)}
             />
           </Row>
@@ -341,23 +352,48 @@ export function SettingsForm() {
             />
           </Row>
 
-          <Row label="Lyrics style" description="Word Sync animates each word as it is sung; Standard uses a filled highlight; Minimal shows plain text.">
+          <Row label="Lyrics style" description="Color Flow sweeps the song accent through words as they are sung; Standard uses a white fill; Minimal shows plain text.">
             <Segmented<LyricsStyle>
               value={settings.lyricsStyle}
               onChange={(next) => update({ lyricsStyle: next })}
-              options={["wordsync", "standard", "minimal"] as const}
+              options={["flow", "standard", "minimal"] as const}
               getLabel={(option) =>
-                option === "wordsync" ? "Word Sync" : option[0].toUpperCase() + option.slice(1)
+                option === "flow" ? "Color Flow" : option[0].toUpperCase() + option.slice(1)
               }
             />
           </Row>
 
-          <Row label="Word animation" description="How strongly words grow while they are being sung (Word Sync style only).">
-            <Segmented<WordAnimation>
-              value={settings.wordAnimation}
-              onChange={(next) => update({ wordAnimation: next })}
-              options={["off", "subtle", "normal", "strong"] as const}
+          <Row label="Word color flow" description="Accent color travels through words following their timestamps (Color Flow style only).">
+            <Toggle
+              checked={settings.wordFlow}
+              onChange={(next) => update({ wordFlow: next })}
+              label="Word color flow"
+            />
+          </Row>
+
+          <Row label="Word highlight intensity" description="How strongly the current word and recently sung words glow with the song accent.">
+            <Segmented<WordFlowIntensity>
+              value={settings.wordFlowIntensity}
+              onChange={(next) => update({ wordFlowIntensity: next })}
+              options={["subtle", "normal", "strong"] as const}
               getLabel={(option) => option[0].toUpperCase() + option.slice(1)}
+            />
+          </Row>
+
+          <Row label="Line transition animation" description="Smoothly animate lines into focus; off snaps positions for minimal motion.">
+            <Segmented<LineAnimation>
+              value={settings.lineAnimation}
+              onChange={(next) => update({ lineAnimation: next })}
+              options={["on", "off"] as const}
+              getLabel={(option) => (option === "on" ? "On" : "Off")}
+            />
+          </Row>
+
+          <Row label="Respect reduced motion" description="Honor the OS reduce-motion preference; lyric colors stay synced either way.">
+            <Toggle
+              checked={settings.respectReducedMotion}
+              onChange={(next) => update({ respectReducedMotion: next })}
+              label="Respect reduced motion"
             />
           </Row>
 

@@ -74,9 +74,9 @@ function centered(): WindowRect {
 export function FloatingLyrics({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { settings } = useSettings();
   const player = usePlayer();
-  const lyrics = useLyrics();
-  const song = player.current;
   const presence = usePresence(open, 200);
+  const lyrics = useLyrics(undefined, presence !== "closed" && presence !== "exiting");
+  const song = player.current;
 
   // Client-only component (opened by user interaction), so reading storage in
   // the initializer is SSR-safe and needs no post-mount hydration pass.

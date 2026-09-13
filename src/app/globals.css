@@ -76,6 +76,33 @@
   inherits: true;
   initial-value: rgba(30, 215, 96, 0.5);
 }
+/* Song palette for the lyric color flow (registered as <color> so the accent
+   crossfades between tracks exactly like the rest of the theme). */
+@property --song-accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1ed760;
+}
+@property --song-secondary {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #177a41;
+}
+@property --song-glow {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(30, 215, 96, 0.5);
+}
+@property --song-glow-b {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(23, 122, 65, 0.32);
+}
+@property --song-bright {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #7bf0a4;
+}
 @property --glow-a {
   syntax: "<color>";
   inherits: true;
@@ -118,24 +145,35 @@
   --ring: #ffffff;
   --radius: 0.5rem;
 
-  /* Smoothly animate palette transitions on track/settings changes. */
+  /* Palette crossfade on track/settings changes. Durations come from the
+     --palette-speed / --palette-speed-short custom properties (written by the
+     theme provider per the user's speed setting), so changing the speed needs
+     no CSS edits and reduced-motion can zero them from one place. Gradient
+     colors themselves never animate: the lyric flow gradient reads the song
+     vars directly and re-resolves once per palette change. Durations fall
+     back to 0ms before the provider runs (SSR). */
   transition:
-    --accent 1s ease,
-    --accent-hover 1s ease,
-    --accent-deep 1s ease,
-    --frame 1s ease,
-    --surface 1s ease,
-    --surface-hover 1s ease,
-    --surface-raised 1s ease,
-    --panel 1s ease,
-    --border-color 1s ease,
-    --input-color 1s ease,
-    --text-subdued 1s ease,
-    --fg-primary 0.6s ease,
-    --accent-glow 1s ease,
-    --glow-a 1s ease,
-    --glow-b 1s ease,
-    --glow-c 1s ease;
+    --accent var(--palette-speed, 0ms) ease,
+    --accent-hover var(--palette-speed, 0ms) ease,
+    --accent-deep var(--palette-speed, 0ms) ease,
+    --song-accent var(--palette-speed, 0ms) ease,
+    --song-secondary var(--palette-speed, 0ms) ease,
+    --song-glow var(--palette-speed, 0ms) ease,
+    --song-glow-b var(--palette-speed, 0ms) ease,
+    --song-bright var(--palette-speed, 0ms) ease,
+    --frame var(--palette-speed, 0ms) ease,
+    --surface var(--palette-speed, 0ms) ease,
+    --surface-hover var(--palette-speed, 0ms) ease,
+    --surface-raised var(--palette-speed, 0ms) ease,
+    --panel var(--palette-speed, 0ms) ease,
+    --border-color var(--palette-speed, 0ms) ease,
+    --input-color var(--palette-speed, 0ms) ease,
+    --text-subdued var(--palette-speed, 0ms) ease,
+    --fg-primary var(--palette-speed-short, 0ms) ease,
+    --accent-glow var(--palette-speed, 0ms) ease,
+    --glow-a var(--palette-speed, 0ms) ease,
+    --glow-b var(--palette-speed, 0ms) ease,
+    --glow-c var(--palette-speed, 0ms) ease;
 }
 
 @theme inline {
@@ -330,21 +368,6 @@ body:has(.floating-lyrics[data-state="entered"]) .ambient-blob {
     linear-gradient(180deg, color-mix(in oklab, var(--accent-glow) 40%, transparent) 0%, transparent 30%, color-mix(in oklab, var(--surface) 82%, transparent) 100%);
 }
 
-/* Word-level karaoke fill: the accent sweeps across each word via --word-progress. */
-.karaoke-word {
-  background: linear-gradient(
-    to right,
-    var(--accent) 0%,
-    var(--accent) calc(var(--word-progress, 0) * 100%),
-    var(--fg-primary) calc(var(--word-progress, 0) * 100%),
-    var(--fg-primary) 100%
-  );
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-}
-
 /* Apple Music-style lyrics panel: frosted backdrop + slide-in */
 .lyrics-panel {
   will-change: transform, opacity;
@@ -377,6 +400,7 @@ html[data-motion="reduced"] .lyrics-line {
   --os-handle-border: 0;
   --os-handle-radius: 4px;
   --os-handle-size: 8px;
+  --os-handle-radius: 4px;
   --os-track-size: 8px;
   --os-track-border: 0;
 }
@@ -396,7 +420,7 @@ html[data-motion="reduced"] .lyrics-line {
 /* ===========================================================================
    Lyrics pop-out panel: rises from the Now Playing bar, stays anchored above
    it. Spicy-Lyrics-inspired: dark neutral base, artwork-tinted ambient fields,
-   gradient-clipped typography with per-word motion.
+   gradient-clipped typography with word-level color flow.
    =========================================================================== */
 
 .lyrics-overlay {
@@ -496,7 +520,7 @@ html[data-motion="reduced"] .lyrics-line {
   right: -20%;
   bottom: -35%;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 45%, color-mix(in oklab, var(--glow-b) 48%, transparent) 0%, transparent 60%);
+  background: radial-gradient(circle at 50% 45%, color-mix(in oklab, var(--song-glow-b) 48%, transparent) 0%, transparent 60%);
   opacity: 0.5;
   animation: lyrics-drift-b 41s ease-in-out infinite alternate;
 }
@@ -541,17 +565,29 @@ html[data-motion="reduced"] .lyrics-line {
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.18;
-  transition: opacity 0.45s ease, filter 0.45s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
   transform-origin: left center;
   outline: none;
 }
 
-.lyrics-line.is-active { opacity: 1; filter: blur(0); transform: scale(1); }
-.lyrics-line.is-next { opacity: 0.58; filter: blur(0.4px); transform: scale(0.976); }
-.lyrics-line.is-far { opacity: 0.34; filter: blur(0.8px); transform: scale(0.956); }
-.lyrics-line.is-distant { opacity: 0.18; filter: blur(1.2px); transform: scale(0.94); }
+/* lineAnimation = off: no line emphasis transition (positions snap). */
+.lyrics-line-static .lyrics-line {
+  transition: none;
+}
+
+.lyrics-line.is-active { opacity: 1; transform: scale(1); }
+.lyrics-line.is-next { opacity: 0.58; transform: scale(0.976); }
+.lyrics-line.is-far { opacity: 0.34; transform: scale(0.956); }
+.lyrics-line.is-distant { opacity: 0.18; transform: scale(0.94); }
 .lyrics-line:hover { opacity: 0.85; }
 .lyrics-line:focus-visible { opacity: 1; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35); border-radius: 8px; }
+
+/* Static lines skip the emphasis scale entirely (positions never move). */
+.lyrics-line-static .lyrics-line.is-next,
+.lyrics-line-static .lyrics-line.is-far,
+.lyrics-line-static .lyrics-line.is-distant {
+  transform: none;
+}
 
 /* Spicy-style soft white gradient: active lines sweep to full white as words
    are sung; inactive lines sit at a dim gradient. Applied via background-clip
@@ -578,8 +614,6 @@ html[data-motion="reduced"] .lyrics-line {
 }
 
 /* States adjust base alpha instead of color so the gradient stays coherent. */
-.lyrics-style-wordsync .lyrics-line.is-active .lyrics-word,
-.lyrics-style-standard .lyrics-line.is-active .lyrics-word { --alpha: 0.98; --alpha-end: 0.32; }
 .lyrics-line.is-active .lyrics-plain { --wpos: 120%; }
 
 .lyrics-line.is-next .lyrics-word,
@@ -594,30 +628,92 @@ html[data-motion="reduced"] .lyrics-line {
   background-image: linear-gradient(100deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 100%);
 }
 
-/* --- Words: individual motion units (scale breathes as sung) --- */
+/* ===========================================================================
+   Word color flow — replaces the old per-word scale animation.
+
+   The engine writes ONE custom property per frame: `--flow` on the active
+   line, the playback head position in word units (word k occupies [k, k+1),
+   fractional part = progress through the word). Every word's gradient
+   derives its own fill state from that shared value via its static --word-i
+   index — no per-word DOM writes, no transforms, no compositor layers, no
+   per-word transitions. Cost per frame: one style write → subtree style
+   recalc → one paint of the active line.
+
+   Per word:
+   --fill  how far the head has traveled through THIS word, 0%→100%
+           (clamped, so unsung and fully-sung words resolve to clean
+           constants — no tint leaks at the extremes)
+   --trail how "long ago" the word was sung (grows only after completion),
+           mixed into the accent so old words relax toward the base color
+           instead of the whole line staying bright
+
+   The moving fill edge inside the current word is the visible "flow head":
+   continuous in time, obviously parked on the exact word being sung.
+   =========================================================================== */
 
 .lyrics-word {
-  display: inline-block;
-  transform-origin: center bottom;
+  display: inline;
   cursor: pointer;
-  /* No will-change here: 1100 words × a permanent compositor layer is worse
-     than promoting only while animating (the engine toggles a class). No
-     transition either: the engine writes scale every frame, and a transition
-     would retarget each frame — pure per-frame cost with no visual gain. */
+  /* No will-change, no transform, no transition: the only animated value is
+     the line's --flow custom property, which repaints the line's text once
+     per frame. A per-word transition would retarget every frame (pure cost).
+     display:inline (not inline-block): no box geometry, cheapest repaint. */
 }
 
-/* Only the currently animating line's words get a compositor layer. */
-.lyrics-animating .lyrics-word {
-  will-change: transform;
+.lyrics-style-flow .lyrics-word {
+  /* Head travel through this word, mapped over an EXTENDED range so the
+     color edge fully exits the word box at both extremes: head ≤ 0 → edge
+     parked before the box (word fully dim), head ≥ 1 → edge parked after it
+     (word fully accent). No dim slivers on completed words, no accent
+     slivers on pending ones — the clamp endpoints are outside the box. */
+  --soft: var(--flow-softness, 5%);
+  --fill: clamp(
+    (var(--flow, -9999) - var(--word-i, 0) - var(--flow-lead, 0.15)) * (100% + 2 * var(--soft)) - var(--soft),
+    -1 * var(--soft),
+    100% + var(--soft)
+  );
+  /* Trail decay: 0 while the word is current, ~--trail-rate per completed
+     word behind the head, capped at --trail-max. */
+  --trail: clamp(
+    (var(--flow, -9999) - var(--word-i, 0) - var(--flow-lead, 0.15) - 1) * var(--trail-rate, 40%),
+    0%,
+    var(--trail-max, 60%)
+  );
+  /* The word-local accent: full strength now, relaxing toward the dim base
+     as the head moves on. color-mix resolves per word from --trail. */
+  --accent-here: color-mix(in oklab, var(--song-accent) calc(100% - var(--trail)), rgba(255, 255, 255, 0.3) var(--trail));
+  background-image: linear-gradient(
+    100deg,
+    var(--accent-here) 0%,
+    var(--accent-here) calc(var(--fill) - var(--soft)),
+    rgba(255, 255, 255, 0.3) calc(var(--fill) + var(--soft)),
+    rgba(255, 255, 255, 0.3) 130%
+  );
 }
 
-html[data-motion="reduced"] .lyrics-word,
-html[data-motion="off"] .lyrics-word {
-  transform: none !important;
-  transition: none !important;
+/* Intensity presets: lead (how early the fill edge arrives), softness (the
+   comet-trail width of the fill edge), trail decay (how quickly sung words
+   relax back toward the base color). */
+.lyrics-flow-subtle {
+  --flow-lead: 0.05;
+  --flow-softness: 3%;
+  --trail-rate: 80%;
+  --trail-max: 75%;
+}
+.lyrics-flow-normal {
+  --flow-lead: 0.15;
+  --flow-softness: 5%;
+  --trail-rate: 40%;
+  --trail-max: 60%;
+}
+.lyrics-flow-strong {
+  --flow-lead: 0.3;
+  --flow-softness: 8%;
+  --trail-rate: 22%;
+  --trail-max: 45%;
 }
 
-/* Standard style: karaoke fill sweep (legacy mechanism, kept for Standard). */
+/* Standard style: karaoke fill sweep (white fill; mechanism unchanged). */
 .lyrics-style-standard .lyrics-word {
   background-image: linear-gradient(
     to right,
@@ -639,7 +735,6 @@ html[data-motion="off"] .lyrics-word {
 .lyrics-style-minimal .lyrics-line.is-next { color: rgba(255, 255, 255, 0.5); }
 .lyrics-style-minimal .lyrics-line.is-far { color: rgba(255, 255, 255, 0.3); }
 .lyrics-style-minimal .lyrics-line.is-distant { color: rgba(255, 255, 255, 0.16); }
-.lyrics-style-minimal .lyrics-word { transform: none !important; }
 
 .lyrics-translation {
   width: 100%;

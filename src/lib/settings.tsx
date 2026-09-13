@@ -14,8 +14,12 @@ export type BackgroundIntensity = "subtle" | "balanced" | "strong";
 export type AnimationMode = "full" | "reduced" | "off";
 export type PlaybackQuality = "original" | "high" | "medium" | "low";
 export type LyricsFontSize = "sm" | "md" | "lg" | "xl";
-export type LyricsStyle = "wordsync" | "standard" | "minimal";
-export type WordAnimation = "off" | "subtle" | "normal" | "strong";
+export type LyricsStyle = "flow" | "standard" | "minimal";
+/** Accent-color intensity of the word color flow. */
+export type WordFlowIntensity = "subtle" | "normal" | "strong";
+/** Duration of the palette crossfade when the track (or theme) changes. */
+export type PaletteSpeed = "fast" | "smooth" | "gentle";
+export type LineAnimation = "on" | "off";
 
 /**
  * Typed, persisted application settings. Everything that influences how the
@@ -33,10 +37,18 @@ export interface AppSettings {
   autoScrollLyrics: boolean;
   centerActiveLyric: boolean;
   lyricsStyle: LyricsStyle;
-  wordAnimation: WordAnimation;
+  /** Accent color flows through words following their timestamps (replaces word scaling). */
+  wordFlow: boolean;
+  wordFlowIntensity: WordFlowIntensity;
+  /** Line focus/position animation (auto-scroll stays available regardless). */
+  lineAnimation: LineAnimation;
+  /** Follow prefers-reduced-motion for palette + lyric movement (colors still sync). */
+  respectReducedMotion: boolean;
   lyricsFontSize: LyricsFontSize;
   showTranslation: boolean;
   backgroundEffects: boolean;
+  /** Speed of the palette crossfade when the track changes. */
+  paletteSpeed: PaletteSpeed;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -50,11 +62,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
   wordSyncedLyrics: true,
   autoScrollLyrics: true,
   centerActiveLyric: true,
-  lyricsStyle: "wordsync",
-  wordAnimation: "normal",
+  lyricsStyle: "flow",
+  wordFlow: true,
+  wordFlowIntensity: "normal",
+  lineAnimation: "on",
+  respectReducedMotion: true,
   lyricsFontSize: "md",
   showTranslation: true,
   backgroundEffects: true,
+  paletteSpeed: "smooth",
 };
 
 const STORAGE_KEY = "spotify-local/settings";
@@ -65,8 +81,10 @@ const INTENSITIES: BackgroundIntensity[] = ["subtle", "balanced", "strong"];
 const ANIMATIONS: AnimationMode[] = ["full", "reduced", "off"];
 const QUALITIES: PlaybackQuality[] = ["original", "high", "medium", "low"];
 const FONT_SIZES: LyricsFontSize[] = ["sm", "md", "lg", "xl"];
-const LYRICS_STYLES: LyricsStyle[] = ["wordsync", "standard", "minimal"];
-const WORD_ANIMATIONS: WordAnimation[] = ["off", "subtle", "normal", "strong"];
+const LYRICS_STYLES: LyricsStyle[] = ["flow", "standard", "minimal"];
+const WORD_FLOW_INTENSITIES: WordFlowIntensity[] = ["subtle", "normal", "strong"];
+const PALETTE_SPEEDS: PaletteSpeed[] = ["fast", "smooth", "gentle"];
+const LINE_ANIMATIONS: LineAnimation[] = ["on", "off"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -118,11 +136,22 @@ export function loadSettings(): AppSettings {
           ? parsed.centerActiveLyric
           : DEFAULT_SETTINGS.centerActiveLyric,
       lyricsStyle: pickEnum(parsed.lyricsStyle, LYRICS_STYLES, DEFAULT_SETTINGS.lyricsStyle),
-      wordAnimation: pickEnum(
-        parsed.wordAnimation,
-        WORD_ANIMATIONS,
-        DEFAULT_SETTINGS.wordAnimation,
+      wordFlow:
+        typeof parsed.wordFlow === "boolean" ? parsed.wordFlow : DEFAULT_SETTINGS.wordFlow,
+      wordFlowIntensity: pickEnum(
+        parsed.wordFlowIntensity,
+        WORD_FLOW_INTENSITIES,
+        DEFAULT_SETTINGS.wordFlowIntensity,
       ),
+      lineAnimation: pickEnum(
+        parsed.lineAnimation,
+        LINE_ANIMATIONS,
+        DEFAULT_SETTINGS.lineAnimation,
+      ),
+      respectReducedMotion:
+        typeof parsed.respectReducedMotion === "boolean"
+          ? parsed.respectReducedMotion
+          : DEFAULT_SETTINGS.respectReducedMotion,
       lyricsFontSize: pickEnum(
         parsed.lyricsFontSize,
         FONT_SIZES,
@@ -136,6 +165,7 @@ export function loadSettings(): AppSettings {
         typeof parsed.backgroundEffects === "boolean"
           ? parsed.backgroundEffects
           : DEFAULT_SETTINGS.backgroundEffects,
+      paletteSpeed: pickEnum(parsed.paletteSpeed, PALETTE_SPEEDS, DEFAULT_SETTINGS.paletteSpeed),
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

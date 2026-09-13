@@ -15,9 +15,9 @@ import { useSettings } from "@/lib/settings";
 export function LyricsPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { settings } = useSettings();
   const player = usePlayer();
-  const lyrics = useLyrics();
-  const song = player.current;
   const presence = usePresence(open, 220);
+  const lyrics = useLyrics(undefined, presence !== "closed" && presence !== "exiting");
+  const song = player.current;
 
   if (presence === "closed") return null;
 

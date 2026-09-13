@@ -12,6 +12,8 @@ export interface ArtPalette {
   accent: string;
   accentHover: string;
   accentDeep: string;
+  /** Secondary song color for the lyric color-flow gradient (artwork-derived). */
+  songSecondary: string;
   frame: string;
   surface: string;
   surfaceHover: string;
@@ -29,6 +31,7 @@ export const DEFAULT_DARK_PALETTE: ArtPalette = {
   accent: "#1ed760",
   accentHover: "#1fdf6b",
   accentDeep: "#0e7a37",
+  songSecondary: "#177a41",
   frame: "#000000",
   surface: "#121212",
   surfaceHover: "#1f1f1f",
@@ -46,6 +49,7 @@ export const DEFAULT_LIGHT_PALETTE: ArtPalette = {
   accent: "#1db954",
   accentHover: "#1f9e4f",
   accentDeep: "#0e7a37",
+  songSecondary: "#17693c",
   frame: "#e4e2de",
   surface: "#f4f2ee",
   surfaceHover: "#e9e7e2",
@@ -150,6 +154,30 @@ function tuneAccent(hex: string): string {
   const { h, s, l } = rgbToHsl(hexToRgb(hex));
   if (s < 0.14) return "#1ed760"; // near-neutral artwork: keep the house accent
   return rgbToHex(hslToRgb(h, clamp(s * 0.82, 0.42, 0.9), clamp(l, 0.42, 0.56)));
+}
+
+/**
+ * Secondary song color for the lyric flow gradient: a deep, saturated sibling
+ * of the accent (rotated slightly toward the dominant artwork hue so the
+ * ramp reads as artwork-derived rather than a one-hue fade).
+ */
+function songSecondaryColor(colors: string[], accentHex: string): string {
+  const accentHsl = rgbToHsl(hexToRgb(accentHex));
+  // Try the next-most-saturated artwork colors for a genuinely distinct hue.
+  const ranked = colors
+    .map((color) => ({ color, hsl: rgbToHsl(hexToRgb(color)) }))
+    .filter((entry) => entry.hsl.s >= 0.22)
+    .sort((a, b) => b.hsl.s - a.hsl.s);
+  const distinct = ranked.find((entry) => {
+    const delta = Math.abs(entry.hsl.h - accentHsl.h);
+    return Math.min(delta, 1 - delta) > 0.08;
+  });
+  if (distinct) {
+    return rgbToHex(hslToRgb(distinct.hsl.h, clamp(distinct.hsl.s, 0.35, 0.85), clamp(distinct.hsl.l, 0.3, 0.5)));
+  }
+  // No distinct artwork hue: a darker, hue-shifted companion of the accent.
+  const shift = accentHsl.s < 0.14 ? 0 : accentHsl.h + 0.035;
+  return rgbToHex(hslToRgb(shift, clamp(accentHsl.s, 0.38, 0.85), clamp(accentHsl.l - 0.22, 0.26, 0.5)));
 }
 
 /**
@@ -282,6 +310,7 @@ export function buildPalette(colors: string[], isLight: boolean): ArtPalette {
   const dominant = dominantColor(colors, isLight ? "#f2f2f2" : "#121212");
   const accentRaw = mostSaturated(colors);
   const accent = tuneAccent(accentRaw);
+  const secondary = songSecondaryColor(colors, accent);
   const accentHover = lighten(accent, 0.045);
   const accentDeep = darken(accent, 0.42);
   const glowB = mixHex(dominant, "#ffffff", isLight ? 0.35 : 0.22);
@@ -294,6 +323,7 @@ export function buildPalette(colors: string[], isLight: boolean): ArtPalette {
       accent,
       accentHover,
       accentDeep,
+      songSecondary: secondary,
       frame,
       surface,
       surfaceHover: lighten(surface, 0.05),
@@ -314,6 +344,7 @@ export function buildPalette(colors: string[], isLight: boolean): ArtPalette {
     accent,
     accentHover,
     accentDeep,
+    songSecondary: secondary,
     frame,
     surface,
     surfaceHover: mixHex(surface, "#ffffff", 0.16),
