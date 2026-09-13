@@ -102,7 +102,7 @@ Run the web application using Docker for easy self-hosting.
 
 ---
 
-## 🧩 How it works
+## How it works
 
 ```text
 ┌──────────────────────┐
