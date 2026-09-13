@@ -1,0 +1,55 @@
+# Arch Linux install hooks for spotify-local.
+
+# post_upgrade runs with $1 = new version, $2 = old version.
+post_upgrade() {
+  post_install "$1"
+}
+
+post_install() {
+  # Drop the sticky bits pacman had to record for the shared cache dir
+  # (pacman does not preserve them), then grant write access for any user.
+  chmod 1777 opt/spotify-local/app/.next/cache 2>/dev/null || true
+
+  cat <<EOF
+
+==> Spotify Local (native desktop app) has been installed.
+
+==> Launch it from your application menu ("Spotify Local"), or run:
+    spotify-local
+
+==> The app opens a native window (system WebKitGTK webview) served by the
+    bundled server under /opt/spotify-local. Nothing else to install.
+
+==> Optional: pre-configure your Navidrome server URL in
+    /etc/spotify-local/spotify-local.env
+
+==> Optional: run the server headlessly (e.g. for direct browser access on
+    this machine) as a user systemd service:
+    systemctl --user enable --now spotify-local.service
+    (then open http://127.0.0.1:3927/ — the desktop app reuses it)
+
+==> On first launch, log in with your Navidrome server URL and credentials.
+
+EOF
+}
+
+pre_remove() {
+  # Terminate any running instances before files disappear (best effort,
+  # per-user processes started by the desktop shell or the optional service).
+  pkill -f "/opt/spotify-local/bin/spotify-local" 2>/dev/null || true
+  pkill -f "/opt/spotify-local/app/server.js" 2>/dev/null || true
+  return 0
+}
+
+post_remove() {
+  # The cache directory is kept world-writable at runtime; clean up leftovers
+  # pacman does not own.
+  rm -rf "opt/spotify-local/app/.next/cache" 2>/dev/null || true
+  cat <<EOF
+
+==> Spotify Local has been removed. User-level data (webview profile data for
+==> http://127.0.0.1:39xx) and logs under \$XDG_RUNTIME_DIR/spotify-local were
+==> not touched.
+
+EOF
+}

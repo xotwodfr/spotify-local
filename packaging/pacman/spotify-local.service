@@ -1,0 +1,15 @@
+[Unit]
+Description=Spotify Local app server (headless, for direct browser access)
+Documentation=https://github.com/xotwodfr/spotify-local
+
+[Service]
+Type=simple
+ExecStart=/opt/spotify-local/runtime/bin/node /opt/spotify-local/app/server.js
+Environment=NODE_ENV=production
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3927
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window. The UI is a remote URL served by the bundled Next.js server, so only core permissions are exposed.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

@@ -1,0 +1,144 @@
+# Maintainer: xotwodfr <fsidblad@gmail.com>
+# Self-contained native desktop packaging for spotify-local
+# (https://github.com/xotwodfr/spotify-local).
+#
+# The package ships a native Tauri 2 desktop shell (system WebKitGTK webview)
+# plus the Next.js standalone production server and a private Node.js runtime
+# under /opt/spotify-local. End users need no Node.js, npm or project deps —
+# the only runtime requirements are the usual desktop libraries, declared as
+# pacman dependencies below.
+#
+# Like the bundled Node runtime and the standalone server, the Rust shell
+# binary is built ahead of time by scripts/build-pacman-package.sh and staged
+# prebuilt in the source tarball (bin/spotify-local); this keeps makepkg fast
+# and hermetic (no cargo registry or network needed during packaging).
+#
+# The source tarball is assembled by scripts/build-pacman-package.sh.
+# It pins sha256sums before invoking makepkg.
+
+pkgname=spotify-local
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Self-hosted Spotify-style Navidrome client (native desktop app)"
+arch=("x86_64")
+url="https://github.com/xotwodfr/spotify-local"
+license=("MIT")
+depends=(
+  # Tauri shell: system webview + GTK stack (same set Tauri's own deb/rpm
+  # bundlers declare).
+  "webkit2gtk-4.1"
+  "gtk3"
+  "glib2"
+  "glibc"
+  "gcc-libs"
+  # Bundled Node.js runtime dynamic libraries.
+  "openssl"
+  "zlib"
+  "zstd"
+  "brotli"
+  "c-ares"
+  "libnghttp2"
+  "libuv"
+  "libffi"
+  "icu"
+  "ada"
+  "simdjson"
+)
+optdepends=(
+  "hicolor-icon-theme: fallback icon theme for the menu icon"
+)
+makedepends=("nodejs>=24" "npm")
+provides=("spotify-local")
+conflicts=("spotify-local")
+options=("!strip" "!debug" "!emptydirs")
+backup=("etc/spotify-local/spotify-local.env")
+install="$pkgname.install"
+source=("spotify-local-$pkgver.tar.zst")
+sha256sums=("SKIP")
+
+# Extracted staging root (created by scripts/build-pacman-package.sh).
+# NB: resolved inside each function; $srcdir is not set at parse time.
+
+prepare() {
+  cd "$srcdir/$pkgname-$pkgver"
+  # Nothing to patch: the prebuilt app + shell binary are packaged as-is.
+  # Sanity checks only.
+  test -f package.json
+  test -f next.config.ts
+  test -d standalone
+  test -f bin/spotify-local
+  test -x bin/spotify-local
+  test -f server.sh
+}
+
+build() {
+  cd "$srcdir/$pkgname-$pkgver"
+  # Assemble the self-contained bundle: app/ (standalone server + static
+  # assets) and runtime/ (private Node.js binary copied from the build host,
+  # which guarantees the required makedepends version). The Tauri shell
+  # binary (bin/spotify-local) was compiled by the staging script.
+  bash server.sh "$pkgver"
+}
+
+check() {
+  cd "$srcdir/$pkgname-$pkgver"
+  # The app must serve from the bundled runtime at the installed layout,
+  # independent of the project directory.
+  bash scripts/test-installed-runtime.sh "$srcdir/$pkgname-$pkgver"
+}
+
+package() {
+  cd "$srcdir/$pkgname-$pkgver"
+
+  # --- Native shell binary (/opt/spotify-local/bin) -----------------------
+  # Not on /usr/bin: it is not a generic CLI, and keeping /usr/bin/spotify-local
+  # as a tiny wrapper lets users override env for debugging.
+  install -d -m 755 "$pkgdir/opt/spotify-local/bin"
+  install -m 755 bin/spotify-local "$pkgdir/opt/spotify-local/bin/spotify-local"
+
+  # --- Application (/opt/spotify-local/app) -------------------------------
+  install -d -m 755 "$pkgdir/opt/spotify-local/app"
+  cp -a app/. "$pkgdir/opt/spotify-local/app/"
+
+  # Cache directory must be writable by every user that launches the app
+  # (sticky bit, cache content only).
+  install -d -m 1777 "$pkgdir/opt/spotify-local/app/.next/cache"
+
+  # --- Private runtime (/opt/spotify-local/runtime) -----------------------
+  install -d -m 755 "$pkgdir/opt/spotify-local/runtime"
+  cp -a runtime/. "$pkgdir/opt/spotify-local/runtime/"
+
+  # --- Launcher (/usr/bin/spotify-local) ----------------------------------
+  install -d -m 755 "$pkgdir/usr/bin"
+  install -m 755 usr/bin/spotify-local "$pkgdir/usr/bin/spotify-local"
+
+  # --- System configuration (pacman-managed, backup=() protects edits) ----
+  install -d -m 755 "$pkgdir/etc/spotify-local"
+  install -m 644 usr/share/doc/spotify-local/examples/spotify-local.env \
+    "$pkgdir/etc/spotify-local/spotify-local.env"
+
+  # --- Desktop entry ------------------------------------------------------
+  install -d -m 755 "$pkgdir/usr/share/applications"
+  install -m 644 usr/share/applications/spotify-local.desktop \
+    "$pkgdir/usr/share/applications/spotify-local.desktop"
+
+  # --- Icons (scalable + raster set) --------------------------------------
+  install -Dm 644 usr/share/icons/hicolor/scalable/apps/spotify-local.svg \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/spotify-local.svg"
+  for size in 256x256 128x128 64x64 48x48 32x32 16x16; do
+    install -Dm 644 "usr/share/icons/hicolor/$size/apps/spotify-local.png" \
+      "$pkgdir/usr/share/icons/hicolor/$size/apps/spotify-local.png"
+  done
+
+  # --- Docs & license ------------------------------------------------------
+  install -d -m 755 "$pkgdir/usr/share/doc/spotify-local/examples"
+  install -m 644 README.md \
+    "$pkgdir/usr/share/doc/spotify-local/README.md"
+  install -Dm 644 LICENSE "$pkgdir/usr/share/licenses/spotify-local/LICENSE"
+
+  # --- Optional systemd user unit -----------------------------------------
+  install -Dm 644 usr/lib/systemd/user/spotify-local.service \
+    "$pkgdir/usr/lib/systemd/user/spotify-local.service"
+}
+
+# vim: set ts=2 sw=2 et:

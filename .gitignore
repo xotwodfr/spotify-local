@@ -4,6 +4,13 @@ node_modules
 .playwright-mcp
 *.tsbuildinfo
 
+# Build artifacts (electron-builder output, pacman packaging)
+dist/
+
+# Tauri/Rust build output
+src-tauri/target/
+src-tauri/gen/
+
 # Scratch logs and audit output
 .start-*.log
 .start.log

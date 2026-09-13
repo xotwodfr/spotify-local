@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Spotify Local
+GenericName=Music Player
+Comment=Self-hosted Spotify-style Navidrome client
+Exec=spotify-local
+TryExec=spotify-local
+Icon=spotify-local
+Terminal=false
+Categories=AudioVideo;Audio;Music;Player;
+Keywords=music;audio;player;navidrome;streaming;spotify;
+StartupWMClass=Spotify Local
+StartupNotify=true

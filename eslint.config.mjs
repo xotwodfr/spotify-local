@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Build artifacts: pacman staging tree and Rust target dir.
+    "dist/**",
+    "src-tauri/target/**",
+    "src-tauri/gen/**",
   ]),
 ]);
 
