@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { IconChevronDown } from "@/components/icons";
+import { Artwork } from "@/components/artwork";
+import { IconChevronDown, IconNext, IconPause, IconPlay } from "@/components/icons";
 import { usePlayer } from "@/components/player-provider";
 import { coverArtUrl } from "@/lib/navidrome/client";
 import { useSettings } from "@/lib/settings";
@@ -40,10 +41,10 @@ const PROVIDER_STORAGE_KEY = "spotify-local/lyrics-provider";
 
 /** Font size mapping for the active lyric line (setting → size/leading). */
 const LINE_FONT_SIZES: Record<string, string> = {
-  sm: "text-xl leading-8 max-[640px]:text-lg max-[640px]:leading-7",
-  md: "text-2xl leading-9 max-[640px]:text-xl max-[640px]:leading-8",
-  lg: "text-3xl leading-11 max-[640px]:text-2xl max-[640px]:leading-9",
-  xl: "text-4xl leading-13 max-[640px]:text-3xl max-[640px]:leading-10",
+  sm: "text-2xl leading-9 max-[640px]:text-xl max-[640px]:leading-8",
+  md: "text-3xl leading-[2.75rem] max-[640px]:text-2xl max-[640px]:leading-9",
+  lg: "text-4xl leading-11 max-[640px]:text-3xl max-[640px]:leading-10",
+  xl: "text-5xl leading-[3.4rem] max-[640px]:text-4xl max-[640px]:leading-11",
 };
 
 interface ProviderOption {
@@ -435,34 +436,53 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
       return resolved && resolved !== "None" ? `Automatic · ${resolved}` : "Automatic";
     }
     return providerOptions.find((option) => option.id === providerSelection)?.name ?? providerSelection;
-  }, [providerSelection, status.provenance, providerOptions]);
-
-  return (
+  }, [providerSelection, status.provenance, providerOptions]);  return (
     <section
       aria-label="Lyrics"
-      className="lyrics-panel fixed inset-y-0 right-0 z-50 flex w-full max-w-[440px] flex-col overflow-hidden border-l border-white/10 bg-(--panel)/[0.72] animate-in slide-in-from-right duration-500 max-[640px]:max-w-full"
+      className="lyrics-panel fixed inset-0 z-50 flex flex-col overflow-hidden bg-(--frame) animate-in fade-in duration-500"
     >
+      {/* Full-bleed artwork backdrop: heavily blurred, deeply dimmed so text stays crisp. */}
       {artUrl && (
         <img
           aria-hidden
           alt=""
           src={artUrl}
-          className="pointer-events-none absolute inset-0 h-full w-full scale-125 object-cover opacity-25 blur-[70px] saturate-150 will-change-transform"
+          className="pointer-events-none absolute inset-0 h-full w-full scale-150 object-cover opacity-40 blur-[90px] saturate-[1.6] will-change-transform"
         />
       )}
+      {/* Deep scrim so the blurred art never competes with the lyrics. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,color-mix(in_oklab,var(--panel)_78%,transparent)_0%,color-mix(in_oklab,var(--panel)_52%,transparent)_45%,color-mix(in_oklab,var(--panel)_82%,transparent)_100%)]"
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.72)_0%,rgba(0,0,0,0.45)_40%,rgba(0,0,0,0.8)_100%)]"
       />
 
-      <header className="relative z-10 flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-(--panel)/40 px-5 py-4 backdrop-blur-xl max-[640px]:px-4 max-[640px]:py-3">
-        <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-(--text-subdued)">Lyrics</p>
-          <p className="mt-1 truncate text-sm font-bold text-(--fg-primary)">{song?.title ?? "Nothing playing"}</p>
+      <header className="relative z-20 flex shrink-0 items-center justify-between gap-3 px-4 py-4 max-[640px]:px-3 max-[640px]:py-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3.5 rounded-2xl border border-white/10 bg-black/35 px-4 py-3 backdrop-blur-2xl max-[640px]:gap-2.5 max-[640px]:rounded-xl max-[640px]:px-3 max-[640px]:py-2">
+          <Artwork src={artUrl} alt="" size="md" shape="square" className="shadow-lg max-[640px]:!h-9 max-[640px]:!w-9" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold text-(--fg-primary)">{song?.title ?? "Nothing playing"}</p>
+            <p className="truncate text-xs text-(--text-subdued)">{song?.artist ?? ""}</p>
+          </div>
+          <button
+            type="button"
+            onClick={player.toggle}
+            aria-label={player.isPlaying ? "Pause" : "Play"}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--fg-primary) text-(--frame) transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary) max-[640px]:h-8 max-[640px]:w-8"
+          >
+            {player.isPlaying ? <IconPause className="h-4 w-4 fill-current" /> : <IconPlay className="h-4 w-4 fill-current" />}
+          </button>
+          <button
+            type="button"
+            onClick={player.next}
+            aria-label="Next"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-(--text-subdued) transition-colors hover:text-(--fg-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80 max-[640px]:h-8 max-[640px]:w-8"
+          >
+            <IconNext className="h-4 w-4 fill-current" />
+          </button>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
-          <div className="relative">
+        <div className="flex shrink-0 items-center gap-1.5">
+          <div className="relative max-[640px]:hidden">
             <button
               type="button"
               onClick={() => setSelectorOpen((open) => !open)}
@@ -536,7 +556,7 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
             )}
           </div>
 
-          <button type="button" onClick={onClose} aria-label="Close lyrics" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-(--text-subdued) transition-colors hover:bg-white/10 hover:text-(--fg-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80">
+          <button type="button" onClick={onClose} aria-label="Close lyrics" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/35 text-(--text-subdued) backdrop-blur-2xl transition-colors hover:bg-white/10 hover:text-(--fg-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80">
             <IconChevronDown className="h-5 w-5" />
           </button>
         </div>
@@ -548,7 +568,7 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
         onTouchStart={beginUserScroll}
         onPointerDown={beginUserScroll}
         onKeyDown={beginUserScroll}
-        className="relative z-10 min-h-0 flex-1 overflow-y-auto px-6 py-10 [scrollbar-width:thin] [scrollbar-color:var(--scrollbar-tint)_transparent] max-[640px]:px-4 max-[640px]:py-8"
+        className="lyrics-scroll relative z-10 mx-auto min-h-0 w-full max-w-[760px] flex-1 overflow-y-auto px-6 pb-[38vh] pt-[34vh] [scrollbar-width:thin] [scrollbar-color:var(--scrollbar-tint)_transparent] [mask-image:linear-gradient(180deg,transparent_0,black_16vh,black_calc(100%-20vh),transparent_100%)] max-[640px]:px-4 max-[640px]:pb-[36vh] max-[640px]:pt-[32vh]"
       >
         {syncedLines && settings.backgroundEffects && (
           <div
@@ -596,9 +616,11 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
         {song && status.kind === "loaded" && status.result?.status === "plain" && (
           <p className="whitespace-pre-wrap text-center text-2xl font-bold leading-10 text-(--fg-primary)/90 max-[640px]:text-xl max-[640px]:leading-8">{status.result.plainLyrics}</p>
         )}
+        {/* Spacer balances the focal point: without lyrics the empty state still sits centered. */}
+        {!syncedLines && <div aria-hidden className="h-[30vh]" />}
 
         {song && status.kind === "loaded" && status.result?.status === "synced" && (
-          <div className="lyrics-lines relative z-10 flex flex-col items-center gap-2">
+          <div className="lyrics-lines relative z-10 flex flex-col items-start gap-1">
             {status.result.lines.map((line, index) => {
               const dist = activeIndex < 0 ? 1 : Math.abs(index - activeIndex);
               const isActive = index === activeIndex;
@@ -610,16 +632,16 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
               const showTranslation = settings.showTranslation && line.translation;
 
               let lineClass =
-                `lyrics-line w-full rounded-lg px-4 py-2 text-center font-bold transition-all duration-[400ms] will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80 cursor-pointer ${fontClass}`;
+                `lyrics-line w-full rounded-lg px-4 py-2.5 text-left font-bold tracking-tight transition-all duration-300 ease-out will-change-[opacity,filter] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80 cursor-pointer ${fontClass}`;
 
               if (isActive) {
-                lineClass += " scale-100 text-(--fg-primary)";
+                lineClass += " text-(--fg-primary)";
               } else if (dist === 1) {
-                lineClass += " scale-[0.93] text-(--fg-primary)/55 hover:text-(--fg-primary)/80";
+                lineClass += " text-(--fg-primary)/60 hover:text-(--fg-primary)/85";
               } else if (dist === 2) {
-                lineClass += " scale-[0.86] text-(--fg-primary)/30 blur-[1px] hover:text-(--fg-primary)/55";
+                lineClass += " text-(--fg-primary)/35 hover:text-(--fg-primary)/60";
               } else {
-                lineClass += " scale-[0.82] text-(--fg-primary)/20 blur-[2px] hover:text-(--fg-primary)/40";
+                lineClass += " text-(--fg-primary)/22 hover:text-(--fg-primary)/45";
               }
 
               return (
@@ -660,6 +682,59 @@ export function LyricsPanel({ onClose }: { onClose: () => void }) {
             })}
           </div>
         )}
+      </div>
+
+      {/* Mobile: the provider pill floats above the nav bar instead of crowding the header. */}
+      <div className="absolute inset-x-0 bottom-[76px] z-20 hidden justify-center px-4 max-[640px]:flex">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setSelectorOpen((open) => !open)}
+            aria-haspopup="listbox"
+            aria-expanded={selectorOpen}
+            title="Lyrics provider"
+            className="flex h-9 max-w-[260px] items-center gap-1.5 rounded-full border border-white/10 bg-black/50 px-4 text-xs font-semibold text-(--text-subdued) backdrop-blur-2xl transition-colors hover:bg-white/10 hover:text-(--fg-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--fg-primary)/80"
+          >
+            <span className="truncate">{providerLabel}</span>
+            <IconChevronDown className={`h-3.5 w-3.5 transition-transform ${selectorOpen ? "rotate-180" : ""}`} />
+          </button>
+          {selectorOpen && (
+            <ul
+              role="listbox"
+              aria-label="Lyrics provider"
+              className="absolute bottom-11 left-1/2 z-50 w-60 -translate-x-1/2 overflow-hidden rounded-lg border border-white/10 bg-(--surface-raised) py-1 shadow-[0_16px_40px_rgba(0,0,0,.6)]"
+            >
+              {providerOptions.map((option) => (
+                <li key={option.id}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={providerSelection === option.id}
+                    disabled={!option.available}
+                    onClick={() => chooseProvider(option.id)}
+                    className={`flex w-full items-start gap-3 px-4 py-2 text-left transition-colors ${
+                      providerSelection === option.id ? "bg-white/10" : "hover:bg-white/5"
+                    } ${option.available ? "" : "cursor-not-allowed opacity-40"}`}
+                  >
+                    <span className="mt-1 flex h-3 w-3 shrink-0 items-center justify-center">
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          providerSelection === option.id ? "bg-(--accent)" : "bg-transparent ring-1 ring-(--fg-primary)/40"
+                        }`}
+                      />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-(--fg-primary)">{option.name}</span>
+                      <span className="block truncate text-xs text-(--text-subdued)">
+                        {!option.available ? "API key required" : option.description}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </section>
   );
