@@ -4,8 +4,6 @@ A Spotify-inspired client for self-hosted music, built around Navidrome and the 
 
 Spotify Local gives you a familiar music streaming interface while keeping your music library on your own server.
 
-![Spotify Local desktop interface](final-desktop-1440.png)
-
 ## Features
 
 - Spotify-inspired interface
@@ -24,16 +22,6 @@ Spotify Local gives you a familiar music streaming interface while keeping your 
 - Docker support
 - Self-hosted music library
 - No Spotify account required
-
-## Screenshots
-
-### Desktop
-
-![Spotify Local desktop](final-desktop-1440.png)
-
-### Mobile
-
-![Spotify Local mobile](final-mobile-390.png)
 
 ## Requirements
 
