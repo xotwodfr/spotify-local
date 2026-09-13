@@ -29,7 +29,7 @@ For using Spotify Local, you need:
 
 - A running Navidrome server
 - A Navidrome account
-- Your Navidrome server URL
+- Your Navidrome server URL + username and password
 
 For development, you also need:
 
