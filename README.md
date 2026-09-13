@@ -1,4 +1,3 @@
-```markdown
 <div align="center">
 
 # 🎵 Spotify Local
@@ -10,9 +9,14 @@
 [![Linux](https://img.shields.io/badge/Linux-1793D1?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/xotwodfr/spotify-local)
 [![Navidrome](https://img.shields.io/badge/Navidrome-5B5B5B?style=for-the-badge)](https://www.navidrome.org/)
 
+<br>
+
 **Spotify-inspired. Self-hosted. Yours.**
 
-A modern music client built around your own music library, with a familiar interface and direct Navidrome integration.
+A modern music client built around your own music library,
+with a familiar interface and direct Navidrome integration.
+
+<br>
 
 [**Download**](https://github.com/xotwodfr/spotify-local/releases) ·
 [**Documentation**](docs/) ·
@@ -29,29 +33,96 @@ Spotify Local is a modern music client for people who own their music.
 
 It connects directly to **Navidrome** through the **OpenSubsonic API**, giving you a familiar Spotify-style interface while keeping your music infrastructure under your control.
 
-- No Spotify account.
-- No Spotify servers.
-- No uploading your library to another service.
-- Just your music, your server, and your player.
+No Spotify account.
+
+No Spotify servers.
+
+No uploading your library to another service.
+
+Just your music, your server, and your player.
 
 ---
 
 ## 🎧 Features
 
-| Feature | Description |
-| --- | --- |
-| 🎵 **Your Library** | Browse your entire music collection through Navidrome — artists, albums, tracks, playlists, recently added, and recommended music. |
-| 🔎 **Fast Search** | Search across your music library using Navidrome's API. Find artists, albums, songs, and playlists without leaving the app. |
-| 🎤 **Lyrics** | A dedicated lyrics experience inspired by modern streaming clients — synchronized lyrics, active-line highlighting, animated interface, and full-screen view. |
-| 📱 **Responsive Design** | One interface across desktop, laptop, and mobile. |
-| 🖥️ **Desktop App** | Run Spotify Local as a native desktop application using **Tauri**. |
-| 🐳 **Self-Host with Docker** | Deploy the web application alongside your existing services. Works naturally with a self-hosted Navidrome setup. |
+<table>
+<tr>
+<td width="50%">
+
+### 🎵 Your Library
+
+Browse your entire music collection through Navidrome.
+
+- Artists
+- Albums
+- Tracks
+- Playlists
+- Recently added music
+- Recommended music
+
+</td>
+<td width="50%">
+
+### 🔎 Fast Search
+
+Search across your music library using Navidrome's API.
+
+Find artists, albums, songs, and playlists without leaving the app.
+
+</td>
+</tr>
+
+<tr>
+<td width="50%">
+
+### 🎤 Lyrics
+
+A dedicated lyrics experience inspired by modern streaming clients.
+
+- Synchronized lyrics
+- Active-line highlighting
+- Animated lyrics interface
+- Full-screen lyrics view
+
+</td>
+<td width="50%">
+
+### 📱 Responsive Design
+
+One interface across different screen sizes.
+
+- Desktop
+- Laptop
+- Mobile
+
+</td>
+</tr>
+
+<tr>
+<td width="50%">
+
+### 🖥️ Desktop App
+
+Run Spotify Local as a native desktop application using **Tauri**.
+
+</td>
+<td width="50%">
+
+### 🐳 Self-Host with Docker
+
+Deploy the web application alongside your existing services.
+
+Works naturally with a self-hosted Navidrome setup.
+
+</td>
+</tr>
+</table>
 
 ---
 
 ## 🧠 How It Works
 
-```
+```text
 ┌─────────────────────────────┐
 │                             │
 │       🎵 Spotify Local      │
@@ -89,20 +160,22 @@ Your music stays on your own infrastructure.
 
 ---
 
-## 🚀 Installation
+# 🚀 Installation
 
 Spotify Local supports two installation methods:
 
-- 🖥️ Native Desktop
-- 🐳 Docker
+- 🖥️ **Native Desktop**
+- 🐳 **Docker**
 
 Both versions require an existing Navidrome server.
 
-### 🖥️ Native Desktop
+---
 
-The native desktop application uses Tauri.
+## 🖥️ Native Desktop
 
-#### Requirements
+The native desktop application uses **Tauri**.
+
+### Requirements
 
 - Node.js
 - npm
@@ -119,20 +192,20 @@ rustc --version
 cargo --version
 ```
 
-#### 1. Clone the repository
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/xotwodfr/spotify-local.git
 cd spotify-local
 ```
 
-#### 2. Install dependencies
+### 2. Install dependencies
 
 ```bash
 npm install
 ```
 
-#### 3. Start the desktop application
+### 3. Start the desktop application
 
 ```bash
 npm run tauri dev
@@ -140,7 +213,7 @@ npm run tauri dev
 
 The application will start as a native desktop window.
 
-#### Build a production application
+### Build a production application
 
 ```bash
 npm run tauri build
@@ -148,40 +221,44 @@ npm run tauri build
 
 Built applications will be placed in:
 
-```
+```text
 src-tauri/target/release/bundle/
 ```
 
 Depending on your platform and Tauri configuration, this includes formats such as:
 
-- AppImage
-- `.deb`
-- `.rpm`
+```text
+AppImage
+.deb
+.rpm
+```
 
-### 🐳 Docker
+---
+
+## 🐳 Docker
 
 Docker is recommended for server deployments and self-hosted installations.
 
-#### Requirements
+### Requirements
 
 - Docker
 - Docker Compose
 - A running Navidrome server
 
-#### 1. Clone the repository
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/xotwodfr/spotify-local.git
 cd spotify-local
 ```
 
-#### 2. Build the Docker image
+### 2. Build the Docker image
 
 ```bash
 docker build -t spotify-local .
 ```
 
-#### 3. Start Spotify Local
+### 3. Start Spotify Local
 
 ```bash
 docker run -d \
@@ -193,13 +270,15 @@ docker run -d \
 
 Spotify Local will now be available at:
 
-```
+```text
 http://localhost:3000
 ```
 
 If you're running it on another machine, replace `localhost` with the server's IP address or hostname.
 
-### 🐳 Docker Compose
+---
+
+## 🐳 Docker Compose
 
 For a persistent deployment, Docker Compose is recommended.
 
@@ -247,11 +326,11 @@ You will need:
 
 Example:
 
-```
+```text
 https://music.example.com
 ```
 
-Spotify Local communicates with Navidrome through the OpenSubsonic API.
+Spotify Local communicates with Navidrome through the **OpenSubsonic API**.
 
 Navidrome handles:
 
@@ -291,7 +370,7 @@ npm run dev
 
 The development server will be available at:
 
-```
+```text
 http://localhost:3000
 ```
 
@@ -364,7 +443,7 @@ Keep changes focused and explain what they improve.
 
 ## 📄 License
 
-Spotify Local is released under the MIT License.
+Spotify Local is released under the **MIT License**.
 
 See [LICENSE](LICENSE) for the full license text.
 
@@ -372,13 +451,14 @@ See [LICENSE](LICENSE) for the full license text.
 
 <div align="center">
 
-**🎵 Your music. Your server. Your interface.**
+### 🎵 Your music. Your server. Your interface.
 
 Built for people who prefer owning their music.
+
+<br>
 
 [GitHub](https://github.com/xotwodfr/spotify-local) ·
 [Issues](https://github.com/xotwodfr/spotify-local/issues) ·
 [Releases](https://github.com/xotwodfr/spotify-local/releases)
 
 </div>
-```
