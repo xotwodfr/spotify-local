@@ -25,19 +25,6 @@ with a familiar interface and direct Navidrome integration.
 
 </div>
 
----
-
-## 📸 Screenshots
-
-<div align="center">
-
-<img src="screenshots/final-desktop-1440.png" width="90%" alt="Spotify Local desktop interface">
-
-<br><br>
-
-<img src="screenshots/final-mobile-390.png" width="30%" alt="Spotify Local mobile interface">
-
-</div>
 
 ---
 
